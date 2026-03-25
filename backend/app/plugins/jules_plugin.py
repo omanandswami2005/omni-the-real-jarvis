@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from google.adk.tools import FunctionTool
 from google.adk.tools.tool_context import ToolContext
+from pydantic import BaseModel, Field
 
 from app.models.plugin import (
     PluginCategory,
@@ -83,6 +84,7 @@ async def _get_api_key(tool_context: ToolContext | None) -> str | None:
     if not user_id:
         return None
     from app.services import secret_service
+
     try:
         secrets = secret_service.load_secrets(user_id, _PLUGIN_ID)
         return secrets.get("JULES_API_KEY")
@@ -126,31 +128,40 @@ async def jules_list_sources(
     sources = []
     for s in data.get("sources", []):
         gh = s.get("githubRepo", {})
-        sources.append({
-            "name": s.get("name", ""),
-            "owner": gh.get("owner", ""),
-            "repo": gh.get("repo", ""),
-            "default_branch": gh.get("defaultBranch", {}).get("displayName", "main"),
-        })
+        sources.append(
+            {
+                "name": s.get("name", ""),
+                "owner": gh.get("owner", ""),
+                "repo": gh.get("repo", ""),
+                "default_branch": gh.get("defaultBranch", {}).get("displayName", "main"),
+            }
+        )
     return {"sources": sources, "count": len(sources)}
 
 
+class JulesSessionConfig(BaseModel):
+    """Configuration for a new Jules coding session."""
+
+    prompt: str = Field(..., description="Detailed description of the coding task for Jules.")
+    source: str = Field(
+        "",
+        description="Source name (e.g. 'sources/github-owner-repo'). Use jules_list_sources to find it.",
+    )
+    branch: str = Field("main", description="Git branch to work from (default: main).")
+    title: str = Field("", description="Optional title for the session.")
+    auto_create_pr: bool = Field(
+        False, description="If true, Jules will automatically create a PR when done."
+    )
+
+
 async def jules_create_session(
-    prompt: str,
-    source: str = "",
-    branch: str = "main",
-    title: str = "",
-    auto_create_pr: bool = False,
+    config: JulesSessionConfig,
     tool_context: ToolContext | None = None,
 ) -> dict:
     """Create a new Jules coding session to delegate a task.
 
     Args:
-        prompt: Detailed description of the coding task for Jules.
-        source: Source name (e.g. 'sources/github-owner-repo'). Use jules_list_sources to find it.
-        branch: Git branch to work from (default: main).
-        title: Optional title for the session.
-        auto_create_pr: If true, Jules will automatically create a PR when done.
+        config: Configuration for the new Jules session.
 
     Returns:
         A dict with the created session details and URL.
@@ -161,15 +172,15 @@ async def jules_create_session(
     if not api_key:
         return {"error": "Jules API key not configured. Add your key in the Integrations page."}
 
-    body: dict = {"prompt": prompt}
-    if title:
-        body["title"] = title
-    if source:
+    body: dict = {"prompt": config.prompt}
+    if config.title:
+        body["title"] = config.title
+    if config.source:
         body["sourceContext"] = {
-            "source": source,
-            "githubRepoContext": {"startingBranch": branch},
+            "source": config.source,
+            "githubRepoContext": {"startingBranch": config.branch},
         }
-    if auto_create_pr:
+    if config.auto_create_pr:
         body["automationMode"] = "AUTO_CREATE_PR"
 
     async with httpx.AsyncClient(timeout=30) as client:
@@ -225,14 +236,16 @@ async def jules_list_sessions(
 
     sessions = []
     for s in data.get("sessions", []):
-        sessions.append({
-            "id": s.get("id", ""),
-            "title": s.get("title", ""),
-            "state": s.get("state", ""),
-            "url": s.get("url", ""),
-            "created": s.get("createTime", ""),
-            "updated": s.get("updateTime", ""),
-        })
+        sessions.append(
+            {
+                "id": s.get("id", ""),
+                "title": s.get("title", ""),
+                "state": s.get("state", ""),
+                "url": s.get("url", ""),
+                "created": s.get("createTime", ""),
+                "updated": s.get("updateTime", ""),
+            }
+        )
     return {"sessions": sessions, "count": len(sessions)}
 
 
@@ -283,11 +296,13 @@ async def jules_get_session(
         for o in outputs:
             pr = o.get("pullRequest", {})
             if pr:
-                prs.append({
-                    "url": pr.get("url", ""),
-                    "title": pr.get("title", ""),
-                    "description": pr.get("description", "")[:300],
-                })
+                prs.append(
+                    {
+                        "url": pr.get("url", ""),
+                        "title": pr.get("title", ""),
+                        "description": pr.get("description", "")[:300],
+                    }
+                )
         result["pull_requests"] = prs
 
     return result
