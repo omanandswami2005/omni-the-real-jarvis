@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.get("")
 async def list_images(
-    user=Depends(get_current_user),  # noqa: B008
+    user=Depends(get_current_user),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
 ):

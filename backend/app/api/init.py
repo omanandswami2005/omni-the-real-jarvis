@@ -22,8 +22,8 @@ router = APIRouter()
 @router.get("/init")
 async def bootstrap(
     user: CurrentUser,
-    persona_svc: PersonaService = Depends(get_persona_service),  # noqa: B008
-    session_svc: SessionService = Depends(get_session_service),  # noqa: B008
+    persona_svc: PersonaService = Depends(get_persona_service),
+    session_svc: SessionService = Depends(get_session_service),
 ) -> dict:
     """Return sessions, personas, and MCP catalog in one response.
 

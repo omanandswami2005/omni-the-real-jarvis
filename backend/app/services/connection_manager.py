@@ -39,6 +39,7 @@ def _fire_and_forget(coro) -> asyncio.Task:
     task.add_done_callback(_background_tasks.discard)
     return task
 
+
 # Heartbeat interval + timeout (seconds)
 _HEARTBEAT_INTERVAL = 30
 _PING_TIMEOUT = 10

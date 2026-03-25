@@ -64,7 +64,7 @@ class AuthenticatedUser:
 
 async def get_current_user(
     request: Request,
-    credential: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),  # noqa: B008
+    credential: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> AuthenticatedUser:
     """Verify Firebase ID token and return an AuthenticatedUser.
 

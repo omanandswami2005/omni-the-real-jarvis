@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 import sys
@@ -50,6 +51,7 @@ _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file, override=False)
     except ImportError:
         for _line in _env_file.read_text().splitlines():
@@ -68,23 +70,43 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 _default_ws = BACKEND_URL.replace("http://", "ws://").replace("https://", "wss://") + "/ws/live"
 WS_URL = os.getenv("WS_LIVE_URL", _default_ws)
 FIREBASE_SIGN_IN_URL = (
-    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-    f"?key={FIREBASE_API_KEY}"
+    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
 )
 
 # ── Colours ───────────────────────────────────────────────────────────
 USE_COLOR = sys.stdout.isatty()
 
+
 def _c(code: str, text: str) -> str:
     return f"{code}{text}\033[0m" if USE_COLOR else text
 
-def green(t: str) -> str:  return _c("\033[92m", t)
-def red(t: str) -> str:    return _c("\033[91m", t)
-def yellow(t: str) -> str: return _c("\033[93m", t)
-def cyan(t: str) -> str:   return _c("\033[96m", t)
-def blue(t: str) -> str:   return _c("\033[94m", t)
-def bold(t: str) -> str:   return _c("\033[1m", t)
-def dim(t: str) -> str:    return _c("\033[2m", t)
+
+def green(t: str) -> str:
+    return _c("\033[92m", t)
+
+
+def red(t: str) -> str:
+    return _c("\033[91m", t)
+
+
+def yellow(t: str) -> str:
+    return _c("\033[93m", t)
+
+
+def cyan(t: str) -> str:
+    return _c("\033[96m", t)
+
+
+def blue(t: str) -> str:
+    return _c("\033[94m", t)
+
+
+def bold(t: str) -> str:
+    return _c("\033[1m", t)
+
+
+def dim(t: str) -> str:
+    return _c("\033[2m", t)
 
 
 # ── Simulated T3 local tools (desktop plugin definitions) ────────────
@@ -92,48 +114,82 @@ DESKTOP_LOCAL_TOOLS = [
     {
         "name": "capture_screen",
         "description": "Capture a screenshot of the desktop",
-        "parameters": {"type": "object", "properties": {"quality": {"type": "integer", "default": 75}}}
+        "parameters": {
+            "type": "object",
+            "properties": {"quality": {"type": "integer", "default": 75}},
+        },
     },
     {
         "name": "screen_info",
         "description": "Get information about connected monitors",
-        "parameters": {"type": "object", "properties": {}}
+        "parameters": {"type": "object", "properties": {}},
     },
     {
         "name": "click",
         "description": "Click at screen coordinates",
-        "parameters": {"type": "object", "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "button": {"type": "string", "default": "left"}}, "required": ["x", "y"]}
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "integer"},
+                "y": {"type": "integer"},
+                "button": {"type": "string", "default": "left"},
+            },
+            "required": ["x", "y"],
+        },
     },
     {
         "name": "type_text",
         "description": "Type text on the keyboard",
-        "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}
+        "parameters": {
+            "type": "object",
+            "properties": {"text": {"type": "string"}},
+            "required": ["text"],
+        },
     },
     {
         "name": "hotkey",
         "description": "Press a keyboard shortcut",
-        "parameters": {"type": "object", "properties": {"keys": {"type": "array", "items": {"type": "string"}}}, "required": ["keys"]}
+        "parameters": {
+            "type": "object",
+            "properties": {"keys": {"type": "array", "items": {"type": "string"}}},
+            "required": ["keys"],
+        },
     },
     {
         "name": "execute_command",
         "description": "Execute a shell command on the desktop",
-        "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}
+        "parameters": {
+            "type": "object",
+            "properties": {"command": {"type": "string"}},
+            "required": ["command"],
+        },
     },
     {
         "name": "read_file",
         "description": "Read a file from the desktop filesystem",
-        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}
+        "parameters": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": ["path"],
+        },
     },
     {
         "name": "list_directory",
         "description": "List files in a desktop directory",
-        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}
+        "parameters": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": ["path"],
+        },
     },
 ]
 
 DESKTOP_CAPABILITIES = [
-    "screen_capture", "input_control", "file_access",
-    "command_execution", "audio_streaming",
+    "screen_capture",
+    "input_control",
+    "file_access",
+    "command_execution",
+    "audio_streaming",
 ]
 
 
@@ -199,6 +255,7 @@ TESTS: list[dict[str, Any]] = [
 
 # ── Firebase Auth ─────────────────────────────────────────────────────
 
+
 async def get_firebase_token() -> str:
     """Sign in with email+password via Firebase Auth REST API."""
     try:
@@ -225,6 +282,7 @@ async def get_firebase_token() -> str:
 
 
 # ── Message collector ─────────────────────────────────────────────────
+
 
 async def collect_messages(ws, timeout: float = 30.0, stop_on_idle: bool = True) -> list[dict]:
     """Receive messages until idle status, timeout, or no more messages."""
@@ -294,10 +352,8 @@ async def drain(ws, timeout: float = 0.5) -> list[dict]:
             if isinstance(raw, bytes):
                 msgs.append({"type": "_binary_audio", "size": len(raw)})
             else:
-                try:
+                with contextlib.suppress(json.JSONDecodeError):
                     msgs.append(json.loads(raw))
-                except json.JSONDecodeError:
-                    pass
     except (TimeoutError, asyncio.CancelledError, Exception):
         pass
     return msgs
@@ -305,9 +361,10 @@ async def drain(ws, timeout: float = 0.5) -> list[dict]:
 
 # ── T3 tool result handler ───────────────────────────────────────────
 
+
 async def handle_tool_invocations(ws, messages: list[dict], timeout: float = 45.0) -> list[dict]:
     """Process tool_invocation messages and send simulated results back.
-    
+
     Continues collecting messages after sending results.
     """
     all_messages = list(messages)
@@ -321,11 +378,15 @@ async def handle_tool_invocations(ws, messages: list[dict], timeout: float = 45.
             call_id = msg.get("call_id", "")
             tool = msg.get("tool", "")
             result = _simulate_tool_result(tool, msg.get("args", {}))
-            await ws.send(json.dumps({
-                "type": "tool_result",
-                "call_id": call_id,
-                "result": result,
-            }))
+            await ws.send(
+                json.dumps(
+                    {
+                        "type": "tool_result",
+                        "call_id": call_id,
+                        "result": result,
+                    }
+                )
+            )
 
     # Continue collecting messages
     try:
@@ -355,11 +416,15 @@ async def handle_tool_invocations(ws, messages: list[dict], timeout: float = 45.
                 call_id = msg.get("call_id", "")
                 tool = msg.get("tool", "")
                 result = _simulate_tool_result(tool, msg.get("args", {}))
-                await ws.send(json.dumps({
-                    "type": "tool_result",
-                    "call_id": call_id,
-                    "result": result,
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "tool_result",
+                            "call_id": call_id,
+                            "result": result,
+                        }
+                    )
+                )
 
             if mtype == "response" and (msg.get("data") or msg.get("content")):
                 has_response = True
@@ -393,7 +458,12 @@ def _simulate_tool_result(tool_name: str, args: dict) -> dict:
             "monitors": [{"left": 0, "top": 0, "width": 1920, "height": 1080}],
         }
     if tool_name == "click":
-        return {"ok": True, "x": args.get("x", 0), "y": args.get("y", 0), "button": args.get("button", "left")}
+        return {
+            "ok": True,
+            "x": args.get("x", 0),
+            "y": args.get("y", 0),
+            "button": args.get("button", "left"),
+        }
     if tool_name == "type_text":
         return {"ok": True, "length": len(args.get("text", ""))}
     if tool_name == "hotkey":
@@ -412,6 +482,7 @@ def _simulate_tool_result(tool_name: str, args: dict) -> dict:
 
 
 # ── Desktop auth handshake ────────────────────────────────────────────
+
 
 async def desktop_auth(ws, token: str) -> dict | None:
     """Send desktop auth message and return auth_response."""
@@ -460,6 +531,7 @@ async def desktop_auth(ws, token: str) -> dict | None:
 
 # ── Message printer ───────────────────────────────────────────────────
 
+
 def print_messages(messages: list[dict], indent: str = "    ") -> None:
     for msg in messages:
         t = msg.get("type", "?")
@@ -487,20 +559,31 @@ def print_messages(messages: list[dict], indent: str = "    ") -> None:
             tool = msg.get("tool_name", "?")
             success = msg.get("success", True)
             icon = green("✓") if success else red("✗")
-            print(f"{indent}{blue('[tool result]')} {icon} {tool}: {str(msg.get('result', ''))[:120]}")
+            print(
+                f"{indent}{blue('[tool result]')} {icon} {tool}: {str(msg.get('result', ''))[:120]}"
+            )
         elif t == "tool_invocation":
             tool = msg.get("tool", "?")
             call_id = msg.get("call_id", "?")
             args_str = json.dumps(msg.get("args", {}))[:100]
-            print(f"{indent}{cyan('[T3 invoke]')} {bold(tool)} call_id={call_id[:16]} {dim(args_str)}")
+            print(
+                f"{indent}{cyan('[T3 invoke]')} {bold(tool)} call_id={call_id[:16]} {dim(args_str)}"
+            )
         elif t == "status":
             state = msg.get("state", "?")
             color = green if state == "idle" else (yellow if state == "processing" else dim)
             print(f"{indent}{dim('[status]')} {color(state)}")
         elif t == "error":
             print(f"{indent}{red('[error]')} {msg.get('code', '?')}: {msg.get('description', '')}")
-        elif t in ("auth_response", "connected", "_binary_audio", "session_created",
-                    "session_suggestion", "client_status_update", "mic_floor"):
+        elif t in (
+            "auth_response",
+            "connected",
+            "_binary_audio",
+            "session_created",
+            "session_suggestion",
+            "client_status_update",
+            "mic_floor",
+        ):
             pass
         elif t == "agent_activity":
             title = msg.get("title", "?")
@@ -512,10 +595,11 @@ def print_messages(messages: list[dict], indent: str = "    ") -> None:
 
 # ── Individual test functions ─────────────────────────────────────────
 
+
 async def test_auth(ws, token: str, results: dict) -> dict | None:
     """Test 1: Auth handshake as desktop client."""
-    print(bold(f"  [1] Desktop WS Auth & Handshake"))
-    print(dim(f"  Connect as desktop client, verify auth_response"))
+    print(bold("  [1] Desktop WS Auth & Handshake"))
+    print(dim("  Connect as desktop client, verify auth_response"))
 
     auth_resp = await desktop_auth(ws, token)
     if not auth_resp:
@@ -538,7 +622,9 @@ async def test_auth(ws, token: str, results: dict) -> dict | None:
     print(f"    User ID  : {user_id}")
     print(f"    Session  : {session_id[:24]}...")
     print(f"    FS Sess  : {fs_session[:24]}..." if fs_session else "    FS Sess  : (lazy)")
-    print(f"    Tools    : {len(tools)} ({', '.join(sorted(tools)[:8])}{'...' if len(tools) > 8 else ''})")
+    print(
+        f"    Tools    : {len(tools)} ({', '.join(sorted(tools)[:8])}{'...' if len(tools) > 8 else ''})"
+    )
     if others:
         print(f"    Others   : {', '.join(others)}")
 
@@ -548,8 +634,8 @@ async def test_auth(ws, token: str, results: dict) -> dict | None:
 
 async def test_text(ws, results: dict) -> None:
     """Test 2: Text chat via desktop WS."""
-    print(bold(f"\n  [2] Text Chat via /ws/live"))
-    print(dim(f"  Send text message, receive agent response"))
+    print(bold("\n  [2] Text Chat via /ws/live"))
+    print(dim("  Send text message, receive agent response"))
 
     prompt = "Say hello and tell me what type of client I am connected as. Keep it brief, one sentence max."
     print(f"  {dim('Prompt:')} {prompt[:100]}")
@@ -561,10 +647,7 @@ async def test_text(ws, results: dict) -> None:
 
     print_messages(messages)
 
-    has_response = any(
-        m.get("type") == "response" and m.get("data")
-        for m in messages
-    )
+    has_response = any(m.get("type") == "response" and m.get("data") for m in messages)
     has_transcript = any(
         m.get("type") == "transcription" and m.get("direction") == "output" and m.get("text")
         for m in messages
@@ -590,10 +673,12 @@ async def test_text(ws, results: dict) -> None:
 
 async def test_t3_tools(ws, results: dict) -> None:
     """Test 3: T3 tool invocation — register local_tools, ask agent to use them."""
-    print(bold(f"\n  [3] T3 Tool Registration & Invocation"))
-    print(dim(f"  Ask agent to capture screen — should invoke our local capture_screen tool"))
+    print(bold("\n  [3] T3 Tool Registration & Invocation"))
+    print(dim("  Ask agent to capture screen — should invoke our local capture_screen tool"))
 
-    prompt = "Please capture a screenshot of my desktop screen right now using the capture_screen tool."
+    prompt = (
+        "Please capture a screenshot of my desktop screen right now using the capture_screen tool."
+    )
     print(f"  {dim('Prompt:')} {prompt[:100]}")
 
     await ws.send(json.dumps({"type": "text", "content": prompt}))
@@ -606,19 +691,14 @@ async def test_t3_tools(ws, results: dict) -> None:
     print_messages(messages)
 
     # Check if we got a tool_invocation for one of our tools
-    got_invocation = any(
-        m.get("type") == "tool_invocation"
-        for m in messages
-    )
+    got_invocation = any(m.get("type") == "tool_invocation" for m in messages)
     # Also check for tool_call (server-side view)
     got_tool_call = any(
-        m.get("type") == "tool_call" and m.get("tool_name") in {t["name"] for t in DESKTOP_LOCAL_TOOLS}
+        m.get("type") == "tool_call"
+        and m.get("tool_name") in {t["name"] for t in DESKTOP_LOCAL_TOOLS}
         for m in messages
     )
-    has_response = any(
-        m.get("type") == "response" and m.get("data")
-        for m in messages
-    )
+    has_response = any(m.get("type") == "response" and m.get("data") for m in messages)
     has_audio = any(m.get("type") == "_binary_audio" for m in messages)
     has_transcript = any(
         m.get("type") == "transcription" and m.get("direction") == "output" and m.get("text")
@@ -635,7 +715,9 @@ async def test_t3_tools(ws, results: dict) -> None:
         results["t3_tools"] = (True, f"tool_call: {', '.join(tools)}")
     elif has_response or has_audio or has_transcript:
         # Agent may have declined to use the tool — partial pass
-        print(yellow(f"\n  ~ WARN ({elapsed:.1f}s) — agent responded but didn't invoke desktop tool"))
+        print(
+            yellow(f"\n  ~ WARN ({elapsed:.1f}s) — agent responded but didn't invoke desktop tool")
+        )
         results["t3_tools"] = (True, "agent responded (no tool invocation)")
     else:
         print(red(f"\n  ✗ FAIL ({elapsed:.1f}s) — no tool invocation or response"))
@@ -644,8 +726,8 @@ async def test_t3_tools(ws, results: dict) -> None:
 
 async def test_cross_client(ws, results: dict) -> None:
     """Test 4: Cross-client — list connected clients."""
-    print(bold(f"\n  [4] Cross-Client — List Clients"))
-    print(dim(f"  Ask agent to list connected clients"))
+    print(bold("\n  [4] Cross-Client — List Clients"))
+    print(dim("  Ask agent to list connected clients"))
 
     prompt = "What client devices do I currently have connected? List them all."
     print(f"  {dim('Prompt:')} {prompt[:80]}")
@@ -657,10 +739,7 @@ async def test_cross_client(ws, results: dict) -> None:
 
     print_messages(messages)
 
-    has_response = any(
-        m.get("type") == "response" and m.get("data")
-        for m in messages
-    )
+    has_response = any(m.get("type") == "response" and m.get("data") for m in messages)
     has_desktop_mention = any(
         "desktop" in (m.get("data", "") or "").lower()
         for m in messages
@@ -691,8 +770,8 @@ async def test_cross_client(ws, results: dict) -> None:
 
 async def test_ping_pong(ws, results: dict) -> None:
     """Test 5: Ping/Pong protocol — send ping, get pong (application-level)."""
-    print(bold(f"\n  [5] Protocol — Ping/Pong"))
-    print(dim(f"  Send ping JSON frame, verify pong response"))
+    print(bold("\n  [5] Protocol — Ping/Pong"))
+    print(dim("  Send ping JSON frame, verify pong response"))
 
     # Note: The ping/pong in the desktop client protocol is application-level JSON,
     # not WebSocket protocol-level pings. The server dispatches pong on receiving ping.
@@ -707,10 +786,7 @@ async def test_ping_pong(ws, results: dict) -> None:
     messages = await collect_messages(ws, timeout=30.0)
     elapsed = time.monotonic() - t0
 
-    has_response = any(
-        m.get("type") in ("response", "_binary_audio")
-        for m in messages
-    )
+    has_response = any(m.get("type") in ("response", "_binary_audio") for m in messages)
     has_transcript = any(
         m.get("type") == "transcription" and m.get("direction") == "output" and m.get("text")
         for m in messages
@@ -726,8 +802,8 @@ async def test_ping_pong(ws, results: dict) -> None:
 
 async def test_interrupt(ws, results: dict) -> None:
     """Test 6: Client interrupt signal."""
-    print(bold(f"\n  [6] Client Interrupt Signal"))
-    print(dim(f"  Send a request, then interrupt it"))
+    print(bold("\n  [6] Client Interrupt Signal"))
+    print(dim("  Send a request, then interrupt it"))
 
     # Send a prompt that will take a while
     prompt = "Write me a very long and detailed essay about the complete history of computing from 1800 to today."
@@ -758,17 +834,17 @@ async def test_interrupt(ws, results: dict) -> None:
     )
 
     if has_recovery:
-        print(green(f"\n  ✓ PASS — interrupt handled, connection recovered"))
+        print(green("\n  ✓ PASS — interrupt handled, connection recovered"))
         results["interrupt"] = (True, "interrupt + recovery OK")
     else:
-        print(yellow(f"\n  ~ WARN — interrupt sent but no recovery response"))
+        print(yellow("\n  ~ WARN — interrupt sent but no recovery response"))
         results["interrupt"] = (True, "interrupt sent (recovery uncertain)")
 
 
 async def test_persona(ws, results: dict) -> None:
     """Test 7: Persona routing via desktop."""
-    print(bold(f"\n  [7] Persona Routing (Desktop)"))
-    print(dim(f"  Route to researcher persona"))
+    print(bold("\n  [7] Persona Routing (Desktop)"))
+    print(dim("  Route to researcher persona"))
 
     prompt = "[Use the researcher persona] Who are you and what are your specialties? Answer in 2 sentences."
     print(f"  {dim('Prompt:')} {prompt[:100]}")
@@ -780,18 +856,14 @@ async def test_persona(ws, results: dict) -> None:
 
     print_messages(messages)
 
-    has_response = any(
-        m.get("type") == "response" and m.get("data")
-        for m in messages
-    )
+    has_response = any(m.get("type") == "response" and m.get("data") for m in messages)
     has_audio = any(m.get("type") == "_binary_audio" for m in messages)
     has_transcript = any(
         m.get("type") == "transcription" and m.get("direction") == "output" and m.get("text")
         for m in messages
     )
     has_transfer = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "transfer_to_agent"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "transfer_to_agent" for m in messages
     )
 
     if has_response or has_audio or has_transcript:
@@ -807,8 +879,8 @@ async def test_reconnect(ws_url: str, token: str, results: dict) -> None:
     """Test 8: Disconnect and reconnect with same token."""
     import websockets
 
-    print(bold(f"\n  [8] Disconnect & Reconnect"))
-    print(dim(f"  Close WS, reconnect, verify new auth_response"))
+    print(bold("\n  [8] Disconnect & Reconnect"))
+    print(dim("  Close WS, reconnect, verify new auth_response"))
 
     max_retries = 3
     last_error = ""
@@ -816,7 +888,9 @@ async def test_reconnect(ws_url: str, token: str, results: dict) -> None:
     for attempt in range(1, max_retries + 1):
         try:
             # Connect first time
-            async with websockets.connect(ws_url, max_size=10 * 1024 * 1024, open_timeout=30) as ws1:
+            async with websockets.connect(
+                ws_url, max_size=10 * 1024 * 1024, open_timeout=30
+            ) as ws1:
                 auth1 = await desktop_auth(ws1, token)
                 if not auth1 or auth1.get("status") != "ok":
                     print(red("  ✗ First connection auth failed"))
@@ -829,7 +903,9 @@ async def test_reconnect(ws_url: str, token: str, results: dict) -> None:
             await asyncio.sleep(2)
 
             # Reconnect
-            async with websockets.connect(ws_url, max_size=10 * 1024 * 1024, open_timeout=30) as ws2:
+            async with websockets.connect(
+                ws_url, max_size=10 * 1024 * 1024, open_timeout=30
+            ) as ws2:
                 auth2 = await desktop_auth(ws2, token)
                 if not auth2 or auth2.get("status") != "ok":
                     print(red("  ✗ Reconnection auth failed"))
@@ -844,10 +920,13 @@ async def test_reconnect(ws_url: str, token: str, results: dict) -> None:
                 has_resp = any(m.get("type") in ("response", "_binary_audio") for m in msgs)
 
                 if has_resp:
-                    print(green(f"\n  ✓ PASS — reconnect successful, session continuity"))
-                    results["reconnect"] = (True, f"reconnected (s1={session1[:12]}, s2={session2[:12]})")
+                    print(green("\n  ✓ PASS — reconnect successful, session continuity"))
+                    results["reconnect"] = (
+                        True,
+                        f"reconnected (s1={session1[:12]}, s2={session2[:12]})",
+                    )
                 else:
-                    print(yellow(f"\n  ~ WARN — reconnected but no response to test message"))
+                    print(yellow("\n  ~ WARN — reconnected but no response to test message"))
                     results["reconnect"] = (True, "reconnect OK (no test response)")
                 return  # success — exit retry loop
 
@@ -863,8 +942,8 @@ async def test_reconnect(ws_url: str, token: str, results: dict) -> None:
 
 async def test_session_info(ws, all_messages: list[dict], results: dict) -> None:
     """Test 9: Session info messages."""
-    print(bold(f"\n  [9] Session Info Messages"))
-    print(dim(f"  Check for session_created / session_suggestion in received messages"))
+    print(bold("\n  [9] Session Info Messages"))
+    print(dim("  Check for session_created / session_suggestion in received messages"))
 
     # Session messages may have been received during earlier tests
     session_created = [m for m in all_messages if m.get("type") == "session_created"]
@@ -881,18 +960,21 @@ async def test_session_info(ws, all_messages: list[dict], results: dict) -> None
 
     # Pass if we got either message, or if auth indicated a session
     if session_created or session_suggestion:
-        print(green(f"\n  ✓ PASS — session messages received"))
-        results["session_info"] = (True, f"created={len(session_created)} suggestion={len(session_suggestion)}")
+        print(green("\n  ✓ PASS — session messages received"))
+        results["session_info"] = (
+            True,
+            f"created={len(session_created)} suggestion={len(session_suggestion)}",
+        )
     else:
         # Session messages are optional (e.g., if lazy creation hasn't triggered)
-        print(yellow(f"\n  ~ INFO — no session messages yet (lazy creation)"))
+        print(yellow("\n  ~ INFO — no session messages yet (lazy creation)"))
         results["session_info"] = (True, "no session messages (lazy creation OK)")
 
 
 async def test_cancel(ws, results: dict) -> None:
     """Test 10: Tool cancellation protocol."""
-    print(bold(f"\n  [10] Tool Cancellation Protocol"))
-    print(dim(f"  Verify cancel message format is accepted"))
+    print(bold("\n  [10] Tool Cancellation Protocol"))
+    print(dim("  Verify cancel message format is accepted"))
 
     # Send a tool_result with cancellation error (simulating what desktop client does)
     cancel_msg = {
@@ -913,14 +995,15 @@ async def test_cancel(ws, results: dict) -> None:
     has_resp = any(m.get("type") in ("response", "_binary_audio") for m in msgs)
 
     if has_resp:
-        print(green(f"\n  ✓ PASS — cancel protocol accepted, connection alive"))
+        print(green("\n  ✓ PASS — cancel protocol accepted, connection alive"))
         results["cancel"] = (True, "cancel message accepted")
     else:
-        print(yellow(f"\n  ~ WARN — cancel sent, no crash but no response"))
+        print(yellow("\n  ~ WARN — cancel sent, no crash but no response"))
         results["cancel"] = (True, "cancel accepted (no response)")
 
 
 # ── Main test runner ──────────────────────────────────────────────────
+
 
 async def run_tests(only: list[str] | None, backend_url: str | None) -> None:
     global BACKEND_URL, WS_URL
@@ -977,12 +1060,15 @@ async def run_tests(only: list[str] | None, backend_url: str | None) -> None:
                 break
             except OSError as e:
                 if _attempt < 3:
-                    print(yellow(f"  DNS/network error (attempt {_attempt}/3): {e} — retrying in 3s …"))
+                    print(
+                        yellow(
+                            f"  DNS/network error (attempt {_attempt}/3): {e} — retrying in 3s …"
+                        )
+                    )
                     await asyncio.sleep(3)
                 else:
                     raise
         async with ws_conn as ws:
-
             # ── Auth test ────────────────────────────────────────
             if "auth" in test_ids:
                 auth_resp = await test_auth(ws, token, results)
@@ -1062,6 +1148,7 @@ async def run_tests(only: list[str] | None, backend_url: str | None) -> None:
     except Exception as exc:
         print(red(f"\n  Unexpected error: {type(exc).__name__}: {exc}"))
         import traceback
+
         traceback.print_exc()
 
     # ── Reconnect test (uses fresh connections) ──────────────────

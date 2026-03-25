@@ -12,7 +12,7 @@ router = APIRouter()
 @router.get("")
 async def list_personas(
     user: CurrentUser,
-    svc: PersonaService = Depends(get_persona_service),  # noqa: B008
+    svc: PersonaService = Depends(get_persona_service),
 ) -> list[PersonaResponse]:
     """Return defaults + user-created personas."""
     return await svc.list_personas(user.uid)
@@ -22,7 +22,7 @@ async def list_personas(
 async def get_persona(
     persona_id: str,
     user: CurrentUser,
-    svc: PersonaService = Depends(get_persona_service),  # noqa: B008
+    svc: PersonaService = Depends(get_persona_service),
 ) -> PersonaResponse:
     """Get a single persona by ID."""
     return await svc.get_persona(user.uid, persona_id)
@@ -32,7 +32,7 @@ async def get_persona(
 async def create_persona(
     body: PersonaCreate,
     user: CurrentUser,
-    svc: PersonaService = Depends(get_persona_service),  # noqa: B008
+    svc: PersonaService = Depends(get_persona_service),
 ) -> PersonaResponse:
     """Create a custom persona."""
     return await svc.create_persona(user.uid, body)
@@ -43,7 +43,7 @@ async def update_persona(
     persona_id: str,
     body: PersonaUpdate,
     user: CurrentUser,
-    svc: PersonaService = Depends(get_persona_service),  # noqa: B008
+    svc: PersonaService = Depends(get_persona_service),
 ) -> PersonaResponse:
     """Update a user-created persona (defaults are immutable)."""
     return await svc.update_persona(user.uid, persona_id, body)
@@ -53,7 +53,7 @@ async def update_persona(
 async def delete_persona(
     persona_id: str,
     user: CurrentUser,
-    svc: PersonaService = Depends(get_persona_service),  # noqa: B008
+    svc: PersonaService = Depends(get_persona_service),
 ) -> None:
     """Delete a user-created persona (defaults cannot be deleted)."""
     await svc.delete_persona(user.uid, persona_id)

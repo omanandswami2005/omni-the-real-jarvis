@@ -184,12 +184,17 @@ async def send_notification(
     if channel == "email":
         if not recipient:
             return {"success": False, "error": "Recipient email required for email channel"}
-        return await send_email(to=recipient, subject=title or "Notification from Omni", body=message)
+        return await send_email(
+            to=recipient, subject=title or "Notification from Omni", body=message
+        )
     elif channel == "log":
         logger.info("notification_sent", channel="log", title=title, message=message)
         return {"success": True, "channel": "log", "message": f"Logged: {title} — {message}"}
     else:
-        return {"success": False, "error": f"Channel '{channel}' not yet supported. Use 'email' or 'log'."}
+        return {
+            "success": False,
+            "error": f"Channel '{channel}' not yet supported. Use 'email' or 'log'.",
+        }
 
 
 # ---------------------------------------------------------------------------

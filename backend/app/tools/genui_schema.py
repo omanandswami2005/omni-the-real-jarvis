@@ -12,6 +12,7 @@ import json as _json
 
 from google.adk.tools import FunctionTool
 from google.adk.tools.tool_context import ToolContext
+
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -105,7 +106,7 @@ _SCHEMAS: dict[str, dict] = {
             "location": "San Francisco",
             "temp": 72,
             "condition": "Sunny",
-            "icon": "\u2600\uFE0F",
+            "icon": "\u2600\ufe0f",
         },
     },
     "map": {
@@ -136,7 +137,12 @@ def _queue_genui(user_id: str, payload: dict) -> None:
 def drain_pending_genui(user_id: str) -> list[dict]:
     """Pop and return all pending GenUI payloads for *user_id*."""
     items = _pending_genui.pop(user_id, [])
-    logger.info("drain_pending_genui", user_id=user_id, count=len(items), pending_keys=list(_pending_genui.keys()))
+    logger.info(
+        "drain_pending_genui",
+        user_id=user_id,
+        count=len(items),
+        pending_keys=list(_pending_genui.keys()),
+    )
     return items
 
 
@@ -213,10 +219,17 @@ def render_genui_component(
         "text": "",
     }
     user_id = tool_context.user_id if tool_context else ""
-    logger.info("render_genui_called", component_type=component_type, user_id=user_id, has_tool_context=tool_context is not None)
+    logger.info(
+        "render_genui_called",
+        component_type=component_type,
+        user_id=user_id,
+        has_tool_context=tool_context is not None,
+    )
     if user_id:
         _queue_genui(user_id, genui_payload)
-        logger.info("genui_queued", user_id=user_id, queue_size=len(_pending_genui.get(user_id, [])))
+        logger.info(
+            "genui_queued", user_id=user_id, queue_size=len(_pending_genui.get(user_id, []))
+        )
 
     # Write state_delta so parent session (via AgentTool) receives the signal
     if tool_context:
@@ -226,7 +239,12 @@ def render_genui_component(
         _prev.append(genui_payload)
         tool_context.state["_genui_results"] = _json.dumps(_prev)
 
-    return {"genui_type": component_type, "rendered": True, "delivered": True, "message": f"{component_type} component has been automatically delivered to the dashboard. Do NOT re-send it."}
+    return {
+        "genui_type": component_type,
+        "rendered": True,
+        "delivered": True,
+        "message": f"{component_type} component has been automatically delivered to the dashboard. Do NOT re-send it.",
+    }
 
 
 def get_genui_schema_tools() -> list[FunctionTool]:

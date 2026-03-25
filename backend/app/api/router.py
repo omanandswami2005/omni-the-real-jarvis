@@ -28,5 +28,7 @@ api_router.include_router(plugins_router, prefix="/plugins", tags=["plugins"])
 api_router.include_router(clients_router, prefix="/clients", tags=["clients"])
 api_router.include_router(gallery_router, prefix="/gallery", tags=["gallery"])
 api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
-api_router.include_router(scheduled_tasks_router, prefix="/scheduled-tasks", tags=["scheduled-tasks"])
+api_router.include_router(
+    scheduled_tasks_router, prefix="/scheduled-tasks", tags=["scheduled-tasks"]
+)
 api_router.include_router(scheduler_router, prefix="/internal/scheduler", tags=["scheduler"])

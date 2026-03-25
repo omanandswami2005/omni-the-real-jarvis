@@ -36,10 +36,12 @@ __all__ = [
 def _sanitize_name(name: str) -> str:
     """Convert a human-readable name to a valid ADK agent identifier."""
     import re
+
     sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
     if sanitized and sanitized[0].isdigit():
         sanitized = "_" + sanitized
     return sanitized or "agent"
+
 
 # ---------------------------------------------------------------------------
 # Data models

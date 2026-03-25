@@ -297,7 +297,10 @@ async def ask_user_confirmation(
                 response = await orchestrator.request_input(
                     task, step, prompt=question, input_type=InputType.CONFIRMATION
                 )
-                return {"response": response, "confirmed": response.lower() in ("yes", "y", "true", "1")}
+                return {
+                    "response": response,
+                    "confirmed": response.lower() in ("yes", "y", "true", "1"),
+                }
 
     # Fallback: publish as standalone input request via event bus
     return await _standalone_input_request(user_id, question, InputType.CONFIRMATION)
@@ -389,18 +392,20 @@ async def _standalone_input_request(
     from app.services.event_bus import get_event_bus
 
     input_id = uuid4().hex[:10]
-    event = json.dumps({
-        "type": "task_input_required",
-        "task_id": "",
-        "input": {
-            "id": input_id,
-            "step_id": "",
-            "input_type": input_type.value,
-            "prompt": prompt,
-            "options": options or [],
-        },
-        "timestamp": time.time(),
-    })
+    event = json.dumps(
+        {
+            "type": "task_input_required",
+            "task_id": "",
+            "input": {
+                "id": input_id,
+                "step_id": "",
+                "input_type": input_type.value,
+                "prompt": prompt,
+                "options": options or [],
+            },
+            "timestamp": time.time(),
+        }
+    )
 
     bus = get_event_bus()
     await bus.publish(user_id, event)

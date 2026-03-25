@@ -9,7 +9,7 @@ Run via stdio:
     python scripts/local_mcp_server.py
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from mcp.server import FastMCP
 
@@ -25,7 +25,7 @@ def echo(message: str) -> str:
 @mcp.tool()
 def get_server_time() -> str:
     """Get the current server time in UTC."""
-    return f"Current server time: {datetime.now(timezone.utc).isoformat()}"
+    return f"Current server time: {datetime.now(UTC).isoformat()}"
 
 
 @mcp.tool()

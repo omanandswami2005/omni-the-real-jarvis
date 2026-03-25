@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-import base64
-
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from app.middleware.auth_middleware import AuthenticatedUser, get_current_user
-from app.models.planned_task import TaskActionRequest, TaskCreateRequest, TaskEditRequest, TaskInputResponse
+from app.models.planned_task import (
+    TaskActionRequest,
+    TaskCreateRequest,
+    TaskEditRequest,
+    TaskInputResponse,
+)
 from app.services.task_orchestrator import get_task_orchestrator
 from app.utils.logging import get_logger
 
@@ -19,7 +22,7 @@ router = APIRouter()
 
 
 @router.get("/")
-async def list_tasks(user: AuthenticatedUser = Depends(get_current_user)):  # noqa: B008
+async def list_tasks(user: AuthenticatedUser = Depends(get_current_user)):
     """List all planned tasks for the authenticated user."""
     orchestrator = get_task_orchestrator()
     tasks = await orchestrator.list_tasks(user.uid)
@@ -43,7 +46,7 @@ async def list_tasks(user: AuthenticatedUser = Depends(get_current_user)):  # no
 @router.post("/")
 async def create_task(
     body: TaskCreateRequest,
-    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Create a new planned task, decompose it into steps."""
     orchestrator = get_task_orchestrator()
@@ -71,7 +74,7 @@ async def create_task(
 
 
 @router.get("/{task_id}")
-async def get_task(task_id: str, user: AuthenticatedUser = Depends(get_current_user)):  # noqa: B008
+async def get_task(task_id: str, user: AuthenticatedUser = Depends(get_current_user)):
     """Get full task detail with steps and outputs."""
     orchestrator = get_task_orchestrator()
     task = await orchestrator.get_task(user.uid, task_id)
@@ -110,7 +113,7 @@ async def get_task(task_id: str, user: AuthenticatedUser = Depends(get_current_u
 
 
 @router.post("/{task_id}/execute")
-async def execute_task(task_id: str, user: AuthenticatedUser = Depends(get_current_user)):  # noqa: B008
+async def execute_task(task_id: str, user: AuthenticatedUser = Depends(get_current_user)):
     """Start executing a planned task (after user confirms)."""
     orchestrator = get_task_orchestrator()
     task = await orchestrator.get_task(user.uid, task_id)
@@ -123,7 +126,7 @@ async def execute_task(task_id: str, user: AuthenticatedUser = Depends(get_curre
 
 
 @router.post("/{task_id}/retry")
-async def retry_task(task_id: str, user: AuthenticatedUser = Depends(get_current_user)):  # noqa: B008
+async def retry_task(task_id: str, user: AuthenticatedUser = Depends(get_current_user)):
     """Retry failed/skipped steps in a failed task."""
     orchestrator = get_task_orchestrator()
     task = await orchestrator.retry_failed_steps(user.uid, task_id)
@@ -141,7 +144,7 @@ async def retry_task(task_id: str, user: AuthenticatedUser = Depends(get_current
 async def task_action(
     task_id: str,
     body: TaskActionRequest,
-    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Pause, resume, or cancel a task."""
     orchestrator = get_task_orchestrator()
@@ -160,7 +163,7 @@ async def task_action(
 
 
 @router.delete("/{task_id}")
-async def delete_task(task_id: str, user: AuthenticatedUser = Depends(get_current_user)):  # noqa: B008
+async def delete_task(task_id: str, user: AuthenticatedUser = Depends(get_current_user)):
     """Delete a planned task. Running tasks are cancelled first."""
     orchestrator = get_task_orchestrator()
     ok = await orchestrator.delete_task(user.uid, task_id)
@@ -175,7 +178,7 @@ async def delete_task(task_id: str, user: AuthenticatedUser = Depends(get_curren
 async def edit_task(
     task_id: str,
     body: TaskEditRequest,
-    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Edit task description and re-plan it. Running tasks cannot be edited."""
     orchestrator = get_task_orchestrator()
@@ -183,7 +186,9 @@ async def edit_task(
     if not task:
         from fastapi import HTTPException
 
-        raise HTTPException(status_code=400, detail="Task not found or cannot be edited while running")
+        raise HTTPException(
+            status_code=400, detail="Task not found or cannot be edited while running"
+        )
     return {
         "id": task.id,
         "title": task.title,
@@ -206,7 +211,7 @@ async def provide_input(
     task_id: str,
     input_id: str,
     body: TaskInputResponse,
-    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Provide human input response for a waiting task step."""
     orchestrator = get_task_orchestrator()
@@ -222,7 +227,7 @@ async def provide_input(
 
 
 @router.get("/desktop/status")
-async def desktop_status(user: AuthenticatedUser = Depends(get_current_user)):  # noqa: B008
+async def desktop_status(user: AuthenticatedUser = Depends(get_current_user)):
     """Get the E2B Desktop sandbox status for the current user."""
     from app.services.e2b_desktop_service import get_e2b_desktop_service
 
@@ -238,7 +243,7 @@ async def desktop_status(user: AuthenticatedUser = Depends(get_current_user)):  
 
 
 @router.post("/desktop/start")
-async def start_desktop(user: AuthenticatedUser = Depends(get_current_user)):  # noqa: B008
+async def start_desktop(user: AuthenticatedUser = Depends(get_current_user)):
     """Start an E2B Desktop sandbox for the current user."""
     from app.services.e2b_desktop_service import get_e2b_desktop_service
 
@@ -252,7 +257,7 @@ async def start_desktop(user: AuthenticatedUser = Depends(get_current_user)):  #
 
 
 @router.post("/desktop/stop")
-async def stop_desktop(user: AuthenticatedUser = Depends(get_current_user)):  # noqa: B008
+async def stop_desktop(user: AuthenticatedUser = Depends(get_current_user)):
     """Stop the E2B Desktop sandbox for the current user."""
     from app.services.e2b_desktop_service import get_e2b_desktop_service
     from app.tools.desktop_tools import _stop_streaming
@@ -265,7 +270,7 @@ async def stop_desktop(user: AuthenticatedUser = Depends(get_current_user)):  # 
 
 @router.post("/desktop/streaming/start")
 async def start_desktop_streaming(
-    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Start streaming the desktop screen to the AI agent (vision).
 
@@ -279,7 +284,7 @@ async def start_desktop_streaming(
 
 @router.post("/desktop/streaming/stop")
 async def stop_desktop_streaming(
-    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Stop streaming the desktop screen to the AI agent."""
     from app.tools.desktop_tools import desktop_stop_streaming
@@ -290,7 +295,7 @@ async def stop_desktop_streaming(
 
 @router.get("/desktop/streaming/status")
 async def desktop_streaming_status(
-    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Check if desktop streaming (agent vision) is active."""
     from app.tools.desktop_tools import _active_streams
@@ -301,9 +306,9 @@ async def desktop_streaming_status(
 
 @router.post("/desktop/upload")
 async def upload_to_desktop(
-    file: UploadFile = File(...),  # noqa: B008
-    path: str = Form("/home/user"),  # noqa: B008
-    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
+    file: UploadFile = File(...),
+    path: str = Form("/home/user"),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Upload a file from the user's machine to the E2B Desktop sandbox.
 

@@ -31,13 +31,13 @@ import textwrap
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 # ── Load .env ────────────────────────────────────────────────────────
 _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file, override=False)
     except ImportError:
         for _line in _env_file.read_text().splitlines():
@@ -54,16 +54,37 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 # ── Colours ──────────────────────────────────────────────────────────
 USE_COLOR = sys.stdout.isatty()
 
+
 def _c(code: str, text: str) -> str:
     return f"{code}{text}\033[0m" if USE_COLOR else text
 
-def green(t: str) -> str:  return _c("\033[92m", t)
-def red(t: str) -> str:    return _c("\033[91m", t)
-def yellow(t: str) -> str: return _c("\033[93m", t)
-def cyan(t: str) -> str:   return _c("\033[96m", t)
-def blue(t: str) -> str:   return _c("\033[94m", t)
-def bold(t: str) -> str:   return _c("\033[1m", t)
-def dim(t: str) -> str:    return _c("\033[2m", t)
+
+def green(t: str) -> str:
+    return _c("\033[92m", t)
+
+
+def red(t: str) -> str:
+    return _c("\033[91m", t)
+
+
+def yellow(t: str) -> str:
+    return _c("\033[93m", t)
+
+
+def cyan(t: str) -> str:
+    return _c("\033[96m", t)
+
+
+def blue(t: str) -> str:
+    return _c("\033[94m", t)
+
+
+def bold(t: str) -> str:
+    return _c("\033[1m", t)
+
+
+def dim(t: str) -> str:
+    return _c("\033[2m", t)
 
 
 # ── Simulated desktop tool definitions (advertised at auth) ──────────
@@ -72,36 +93,59 @@ DESKTOP_LOCAL_TOOLS = [
     {
         "name": "capture_screen",
         "description": "Capture a screenshot of the desktop",
-        "parameters": {"type": "object", "properties": {"quality": {"type": "integer", "default": 75}}},
+        "parameters": {
+            "type": "object",
+            "properties": {"quality": {"type": "integer", "default": 75}},
+        },
     },
     {
         "name": "click",
         "description": "Click at screen coordinates",
         "parameters": {
             "type": "object",
-            "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "button": {"type": "string", "default": "left"}},
+            "properties": {
+                "x": {"type": "integer"},
+                "y": {"type": "integer"},
+                "button": {"type": "string", "default": "left"},
+            },
             "required": ["x", "y"],
         },
     },
     {
         "name": "type_text",
         "description": "Type text on the keyboard",
-        "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
+        "parameters": {
+            "type": "object",
+            "properties": {"text": {"type": "string"}},
+            "required": ["text"],
+        },
     },
     {
         "name": "hotkey",
         "description": "Press a keyboard shortcut",
-        "parameters": {"type": "object", "properties": {"keys": {"type": "array", "items": {"type": "string"}}}, "required": ["keys"]},
+        "parameters": {
+            "type": "object",
+            "properties": {"keys": {"type": "array", "items": {"type": "string"}}},
+            "required": ["keys"],
+        },
     },
     {
         "name": "execute_command",
         "description": "Execute a shell command on the desktop",
-        "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]},
+        "parameters": {
+            "type": "object",
+            "properties": {"command": {"type": "string"}},
+            "required": ["command"],
+        },
     },
     {
         "name": "read_file",
         "description": "Read a file from the desktop filesystem",
-        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+        "parameters": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": ["path"],
+        },
     },
     {
         "name": "write_file",
@@ -115,12 +159,20 @@ DESKTOP_LOCAL_TOOLS = [
     {
         "name": "list_directory",
         "description": "List files in a desktop directory",
-        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+        "parameters": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": ["path"],
+        },
     },
     {
         "name": "open_app",
         "description": "Open an application on the desktop by name",
-        "parameters": {"type": "object", "properties": {"app": {"type": "string"}}, "required": ["app"]},
+        "parameters": {
+            "type": "object",
+            "properties": {"app": {"type": "string"}},
+            "required": ["app"],
+        },
     },
     {
         "name": "screen_info",
@@ -130,25 +182,34 @@ DESKTOP_LOCAL_TOOLS = [
     {
         "name": "file_info",
         "description": "Get metadata about a file on the desktop",
-        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+        "parameters": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": ["path"],
+        },
     },
 ]
 
 DESKTOP_CAPABILITIES = [
-    "screen_capture", "mouse_control", "keyboard_control",
-    "app_launch", "file_system", "execute_command",
+    "screen_capture",
+    "mouse_control",
+    "keyboard_control",
+    "app_launch",
+    "file_system",
+    "execute_command",
 ]
 
 
 # ── Simulated filesystem state ───────────────────────────────────────
 # Track file operations locally so we can verify the agent's actions.
 
+
 class SimulatedFS:
     """In-memory filesystem to track what the agent did."""
 
     def __init__(self):
         self.files: dict[str, str] = {}  # path -> content
-        self.ops: list[dict] = []        # log of operations
+        self.ops: list[dict] = []  # log of operations
 
     def write(self, path: str, content: str) -> dict:
         self.files[path] = content
@@ -163,14 +224,24 @@ class SimulatedFS:
 
     def info(self, path: str) -> dict:
         if path in self.files:
-            return {"ok": True, "path": path, "size": len(self.files[path]), "is_dir": False, "exists": True}
+            return {
+                "ok": True,
+                "path": path,
+                "size": len(self.files[path]),
+                "is_dir": False,
+                "exists": True,
+            }
         return {"ok": True, "path": path, "exists": False}
 
     def list_dir(self, path: str) -> dict:
         entries = []
         for fpath, content in self.files.items():
-            if fpath.startswith(path.rstrip("/") + "/") or fpath.startswith(path.rstrip("\\") + "\\"):
-                entries.append({"name": os.path.basename(fpath), "is_dir": False, "size": len(content)})
+            if fpath.startswith(path.rstrip("/") + "/") or fpath.startswith(
+                path.rstrip("\\") + "\\"
+            ):
+                entries.append(
+                    {"name": os.path.basename(fpath), "is_dir": False, "size": len(content)}
+                )
         self.ops.append({"op": "list_dir", "path": path})
         return entries if entries else [{"name": ".", "is_dir": True, "size": 0}]
 
@@ -199,7 +270,11 @@ class SimulatedFS:
                 src = parts[-2]
                 dst = parts[-1]
                 for fpath in list(self.files.keys()):
-                    if fpath == src or fpath.endswith(src) or os.path.basename(fpath) == os.path.basename(src):
+                    if (
+                        fpath == src
+                        or fpath.endswith(src)
+                        or os.path.basename(fpath) == os.path.basename(src)
+                    ):
                         self.files[dst] = self.files.pop(fpath)
                         return {"ok": True, "stdout": f"Moved {fpath} -> {dst}", "returncode": 0}
             return {"ok": True, "stdout": "1 file(s) moved.", "returncode": 0}
@@ -234,7 +309,10 @@ def simulate_tool(tool_name: str, args: dict) -> dict:
     if tool_name == "capture_screen":
         return {"ok": True, "image_base64": "iVBORw0KGgo=", "width": 1920, "height": 1080}
     if tool_name == "screen_info":
-        return {"primary": {"width": 1920, "height": 1080}, "monitors": [{"left": 0, "top": 0, "width": 1920, "height": 1080}]}
+        return {
+            "primary": {"width": 1920, "height": 1080},
+            "monitors": [{"left": 0, "top": 0, "width": 1920, "height": 1080}],
+        }
     if tool_name == "click":
         return {"ok": True, "x": args.get("x", 0), "y": args.get("y", 0)}
     if tool_name == "type_text":
@@ -247,28 +325,38 @@ def simulate_tool(tool_name: str, args: dict) -> dict:
 
 # ── Firebase Auth ────────────────────────────────────────────────────
 
+
 async def get_token() -> str:
     import httpx
+
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
     async with httpx.AsyncClient(timeout=15) as c:
-        resp = await c.post(url, json={"email": EMAIL, "password": PASSWORD, "returnSecureToken": True})
+        resp = await c.post(
+            url, json={"email": EMAIL, "password": PASSWORD, "returnSecureToken": True}
+        )
     resp.raise_for_status()
     return resp.json()["idToken"]
 
 
 # ── WS message helpers ───────────────────────────────────────────────
 
+
 async def ws_auth(ws, token: str) -> dict | None:
     """Send desktop auth and return auth_response."""
     import platform
-    await ws.send(json.dumps({
-        "type": "auth",
-        "token": token,
-        "client_type": "desktop",
-        "user_agent": f"OmniDesktopTest/1.0 ({platform.system()})",
-        "capabilities": DESKTOP_CAPABILITIES,
-        "local_tools": DESKTOP_LOCAL_TOOLS,
-    }))
+
+    await ws.send(
+        json.dumps(
+            {
+                "type": "auth",
+                "token": token,
+                "client_type": "desktop",
+                "user_agent": f"OmniDesktopTest/1.0 ({platform.system()})",
+                "capabilities": DESKTOP_CAPABILITIES,
+                "local_tools": DESKTOP_LOCAL_TOOLS,
+            }
+        )
+    )
     for _ in range(10):
         try:
             raw = await asyncio.wait_for(ws.recv(), timeout=15)
@@ -290,7 +378,7 @@ async def send_prompt_and_handle(ws, prompt: str, timeout: float = 90.0) -> dict
     await ws.send(json.dumps({"type": "text", "content": prompt}))
     t0 = time.monotonic()
     messages: list[dict] = []
-    tools_invoked: list[dict] = []   # {tool, args, call_id}
+    tools_invoked: list[dict] = []  # {tool, args, call_id}
     actions_received: list[dict] = []  # cross_client_action
     has_response = False
     saw_transfer = False
@@ -327,11 +415,15 @@ async def send_prompt_and_handle(ws, prompt: str, timeout: float = 90.0) -> dict
                 args = msg.get("args", {})
                 tools_invoked.append({"tool": tool, "args": args, "call_id": call_id})
                 result = simulate_tool(tool, args)
-                await ws.send(json.dumps({
-                    "type": "tool_result",
-                    "call_id": call_id,
-                    "result": result,
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "tool_result",
+                            "call_id": call_id,
+                            "result": result,
+                        }
+                    )
+                )
 
             # Handle cross_client (fire-and-forget from backend)
             elif mtype == "cross_client":
@@ -340,11 +432,15 @@ async def send_prompt_and_handle(ws, prompt: str, timeout: float = 90.0) -> dict
                 actions_received.append({"action": action, "payload": payload})
                 # Simulate and send response
                 result = simulate_tool(action, payload)
-                await ws.send(json.dumps({
-                    "type": "action_response",
-                    "action": action,
-                    "result": result,
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "action_response",
+                            "action": action,
+                            "result": result,
+                        }
+                    )
+                )
 
             elif mtype == "tool_call" and msg.get("tool_name") == "transfer_to_agent":
                 saw_transfer = True
@@ -352,10 +448,7 @@ async def send_prompt_and_handle(ws, prompt: str, timeout: float = 90.0) -> dict
             elif mtype == "response" and (msg.get("data") or msg.get("content")):
                 has_response = True
 
-            elif mtype == "status" and msg.get("state") == "idle" and has_response:
-                break
-
-            elif mtype == "status" and msg.get("state") == "error":
+            elif (mtype == "status" and msg.get("state") == "idle" and has_response) or (mtype == "status" and msg.get("state") == "error"):
                 break
 
     except Exception as exc:
@@ -397,7 +490,9 @@ def print_messages(messages: list[dict], indent: str = "      ") -> None:
             tool = msg.get("tool_name", "?")
             success = msg.get("success", True)
             icon = green("✓") if success else red("✗")
-            print(f"{indent}{blue('[tool result]')} {icon} {tool}: {str(msg.get('result', ''))[:120]}")
+            print(
+                f"{indent}{blue('[tool result]')} {icon} {tool}: {str(msg.get('result', ''))[:120]}"
+            )
         elif t == "transcription":
             text = msg.get("text", "")
             if text:
@@ -408,8 +503,16 @@ def print_messages(messages: list[dict], indent: str = "      ") -> None:
             state = msg.get("state", "?")
             color = green if state == "idle" else (yellow if state == "processing" else dim)
             print(f"{indent}{dim('[status]')} {color(state)}")
-        elif t in ("auth_response", "connected", "_audio", "session_created",
-                    "session_suggestion", "client_status_update", "mic_floor", "ping"):
+        elif t in (
+            "auth_response",
+            "connected",
+            "_audio",
+            "session_created",
+            "session_suggestion",
+            "client_status_update",
+            "mic_floor",
+            "ping",
+        ):
             pass
         elif t == "agent_activity":
             title = msg.get("title", "?")
@@ -449,9 +552,7 @@ async def test_file_create(ws, results: dict) -> None:
     print_messages(result["messages"])
 
     # Check if write_file was invoked (via T3 or cross_client)
-    wrote = any(
-        t["tool"] in ("write_file",) for t in result["tools_invoked"]
-    ) or any(
+    wrote = any(t["tool"] in ("write_file",) for t in result["tools_invoked"]) or any(
         a["action"] in ("write_file",) for a in result["actions_received"]
     )
     # Also accept send_to_desktop with write_file action
@@ -468,10 +569,18 @@ async def test_file_create(ws, results: dict) -> None:
         # Agent might have used execute_command to create the file
         exec_ops = [t for t in result["tools_invoked"] if t["tool"] == "execute_command"]
         if exec_ops:
-            print(green(f"\n      ✓ PASS ({result['elapsed']:.1f}s) — file created via execute_command"))
-            results["file_create"] = (True, f"via execute_command")
+            print(
+                green(
+                    f"\n      ✓ PASS ({result['elapsed']:.1f}s) — file created via execute_command"
+                )
+            )
+            results["file_create"] = (True, "via execute_command")
         else:
-            print(yellow(f"\n      ~ WARN ({result['elapsed']:.1f}s) — agent responded but may not have written file"))
+            print(
+                yellow(
+                    f"\n      ~ WARN ({result['elapsed']:.1f}s) — agent responded but may not have written file"
+                )
+            )
             results["file_create"] = (True, "agent responded (indirect)")
     else:
         print(red(f"\n      ✗ FAIL ({result['elapsed']:.1f}s) — no file creation detected"))
@@ -485,7 +594,10 @@ async def test_file_read(ws, results: dict) -> None:
 
     # Pre-seed the simulated FS if it wasn't written by test 1
     if not any("omni_test" in p for p in _fs.files):
-        _fs.write(os.path.expanduser("~/Desktop/omni_test.txt"), "Hello from Omni Hub! Test file created successfully.")
+        _fs.write(
+            os.path.expanduser("~/Desktop/omni_test.txt"),
+            "Hello from Omni Hub! Test file created successfully.",
+        )
 
     prompt = (
         "Read the file ~/Desktop/omni_test.txt on my desktop and tell me what it contains. "
@@ -526,8 +638,11 @@ async def test_file_copy(ws, results: dict) -> None:
 
     exec_ops = [t for t in result["tools_invoked"] if t["tool"] == "execute_command"]
     action_execs = [a for a in result["actions_received"] if a["action"] == "execute_command"]
-    has_copy = any("copy" in json.dumps(t.get("args", {})).lower() or "cp " in json.dumps(t.get("args", {})).lower()
-                    for t in result["tools_invoked"])
+    has_copy = any(
+        "copy" in json.dumps(t.get("args", {})).lower()
+        or "cp " in json.dumps(t.get("args", {})).lower()
+        for t in result["tools_invoked"]
+    )
 
     if exec_ops or action_execs or has_copy:
         print(green(f"\n      ✓ PASS ({result['elapsed']:.1f}s) — copy command executed"))
@@ -557,9 +672,9 @@ async def test_file_move(ws, results: dict) -> None:
     exec_ops = [t for t in result["tools_invoked"] if t["tool"] == "execute_command"]
     action_execs = [a for a in result["actions_received"] if a["action"] == "execute_command"]
     has_move = any(
-        "move" in json.dumps(t.get("args", {})).lower() or
-        "mv " in json.dumps(t.get("args", {})).lower() or
-        "ren " in json.dumps(t.get("args", {})).lower()
+        "move" in json.dumps(t.get("args", {})).lower()
+        or "mv " in json.dumps(t.get("args", {})).lower()
+        or "ren " in json.dumps(t.get("args", {})).lower()
         for t in result["tools_invoked"]
     )
 
@@ -588,12 +703,10 @@ async def test_notepad(ws, results: dict) -> None:
     open_ops = [t for t in result["tools_invoked"] if t["tool"] == "open_app"]
     action_opens = [a for a in result["actions_received"] if a["action"] == "open_app"]
     exec_notepad = any(
-        "notepad" in json.dumps(t.get("args", {})).lower()
-        for t in result["tools_invoked"]
+        "notepad" in json.dumps(t.get("args", {})).lower() for t in result["tools_invoked"]
     )
     cross_notepad = any(
-        "notepad" in json.dumps(a.get("payload", {})).lower()
-        for a in result["actions_received"]
+        "notepad" in json.dumps(a.get("payload", {})).lower() for a in result["actions_received"]
     )
 
     if open_ops or action_opens or exec_notepad or cross_notepad:
@@ -608,10 +721,16 @@ async def test_notepad(ws, results: dict) -> None:
         # Agent might have used execute_command or send_to_desktop
         any_tool = result["tools_invoked"] or result["actions_received"]
         if any_tool:
-            print(green(f"\n      ✓ PASS ({result['elapsed']:.1f}s) — agent used tools for notepad"))
+            print(
+                green(f"\n      ✓ PASS ({result['elapsed']:.1f}s) — agent used tools for notepad")
+            )
             results["notepad"] = (True, "agent used tools")
         else:
-            print(yellow(f"\n      ~ WARN ({result['elapsed']:.1f}s) — agent responded but no tool invoked"))
+            print(
+                yellow(
+                    f"\n      ~ WARN ({result['elapsed']:.1f}s) — agent responded but no tool invoked"
+                )
+            )
             results["notepad"] = (True, "agent responded (no tool)")
     else:
         print(red(f"\n      ✗ FAIL ({result['elapsed']:.1f}s) — no notepad launch"))
@@ -633,11 +752,9 @@ async def test_youtube(ws, results: dict) -> None:
     print_messages(result["messages"])
 
     has_youtube = any(
-        "youtube" in json.dumps(t.get("args", {})).lower()
-        for t in result["tools_invoked"]
+        "youtube" in json.dumps(t.get("args", {})).lower() for t in result["tools_invoked"]
     ) or any(
-        "youtube" in json.dumps(a.get("payload", {})).lower()
-        for a in result["actions_received"]
+        "youtube" in json.dumps(a.get("payload", {})).lower() for a in result["actions_received"]
     )
     any_tool = result["tools_invoked"] or result["actions_received"]
 
@@ -666,6 +783,7 @@ TEST_MAP = {
     "youtube": test_youtube,
 }
 
+
 async def run_tests(only: list[str] | None, backend_url: str) -> None:
     ws_url = backend_url.replace("http://", "ws://").replace("https://", "wss://") + "/ws/live"
 
@@ -681,7 +799,7 @@ async def run_tests(only: list[str] | None, backend_url: str) -> None:
     # Auth
     print(bold("  Authenticating..."))
     token = await get_token()
-    print(green(f"  Firebase auth OK") + dim(f"  (token: {token[:20]}...)"))
+    print(green("  Firebase auth OK") + dim(f"  (token: {token[:20]}...)"))
 
     tests_to_run = TESTS if not only else [t for t in TESTS if t["id"] in only]
     results: dict[str, tuple[bool, str]] = {}
@@ -690,19 +808,22 @@ async def run_tests(only: list[str] | None, backend_url: str) -> None:
 
     try:
         print(f"\n  Connecting to {ws_url} ...")
-        async with websockets.connect(ws_url, max_size=10 * 1024 * 1024, open_timeout=30,
-                                       ping_interval=30, ping_timeout=60) as ws:
+        async with websockets.connect(
+            ws_url, max_size=10 * 1024 * 1024, open_timeout=30, ping_interval=30, ping_timeout=60
+        ) as ws:
             # Auth handshake
             auth_resp = await ws_auth(ws, token)
             if not auth_resp or auth_resp.get("status") != "ok":
                 print(red(f"  Auth failed: {auth_resp}"))
                 sys.exit(1)
-            print(green(f"  WS authenticated — session: {auth_resp.get('session_id', '?')[:24]}..."))
+            print(
+                green(f"  WS authenticated — session: {auth_resp.get('session_id', '?')[:24]}...")
+            )
 
             # Drain startup messages
             try:
                 while True:
-                    raw = await asyncio.wait_for(ws.recv(), timeout=2.0)
+                    await asyncio.wait_for(ws.recv(), timeout=2.0)
             except (TimeoutError, asyncio.CancelledError):
                 pass
 
@@ -721,11 +842,12 @@ async def run_tests(only: list[str] | None, backend_url: str) -> None:
                     await asyncio.sleep(1)
 
     except ConnectionRefusedError:
-        print(red(f"\n  Connection refused — is the backend running?"))
+        print(red("\n  Connection refused — is the backend running?"))
         sys.exit(1)
     except Exception as exc:
         print(red(f"\n  Error: {type(exc).__name__}: {exc}"))
         import traceback
+
         traceback.print_exc()
 
     # ── Summary ──────────────────────────────────────────────────
@@ -770,7 +892,10 @@ async def run_tests(only: list[str] | None, backend_url: str) -> None:
 def main():
     parser = argparse.ArgumentParser(description="Desktop File & App Operations E2E Test")
     parser.add_argument("--backend", default=BACKEND_URL, help="Backend URL")
-    parser.add_argument("--only", help="Comma-separated test IDs: file_create,file_read,file_copy,file_move,notepad,youtube")
+    parser.add_argument(
+        "--only",
+        help="Comma-separated test IDs: file_create,file_read,file_copy,file_move,notepad,youtube",
+    )
     parser.add_argument("--list", action="store_true", help="List test IDs")
     args = parser.parse_args()
 

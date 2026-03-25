@@ -133,9 +133,11 @@ async def scheduler_health():
     try:
         active_count = 0
         failed_count = 0
-        for doc in svc.db.collection("scheduled_tasks").where(
-            filter=firestore.FieldFilter("status", "in", ["active", "failed"])
-        ).stream():
+        for doc in (
+            svc.db.collection("scheduled_tasks")
+            .where(filter=firestore.FieldFilter("status", "in", ["active", "failed"]))
+            .stream()
+        ):
             data = doc.to_dict()
             if data.get("status") == "active":
                 active_count += 1

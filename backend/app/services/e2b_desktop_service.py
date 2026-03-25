@@ -93,7 +93,9 @@ class E2BDesktopService:
         await self._publish_status(info)
 
         try:
-            sandbox = await asyncio.to_thread(Sandbox.create, timeout=timeout, api_key=settings.E2B_API_KEY)
+            sandbox = await asyncio.to_thread(
+                Sandbox.create, timeout=timeout, api_key=settings.E2B_API_KEY
+            )
             info.sandbox_id = sandbox.sandbox_id
             info.status = DesktopStatus.READY
 
@@ -185,7 +187,9 @@ class E2BDesktopService:
         sandbox = self._get_sandbox(user_id)
         await asyncio.to_thread(sandbox.move_mouse, x, y)
 
-    async def scroll(self, user_id: str, x: int, y: int, direction: str = "down", amount: int = 3) -> None:
+    async def scroll(
+        self, user_id: str, x: int, y: int, direction: str = "down", amount: int = 3
+    ) -> None:
         sandbox = self._get_sandbox(user_id)
         await asyncio.to_thread(sandbox.move_mouse, x, y)
         await asyncio.to_thread(sandbox.scroll, direction=direction, amount=amount)
@@ -294,15 +298,17 @@ class E2BDesktopService:
 
     async def _publish_status(self, info: DesktopInfo) -> None:
         """Publish desktop status to EventBus."""
-        event = json.dumps({
-            "type": "e2b_desktop_status",
-            "desktop": {
-                "sandbox_id": info.sandbox_id,
-                "status": info.status.value,
-                "stream_url": info.stream_url,
-            },
-            "timestamp": time.time(),
-        })
+        event = json.dumps(
+            {
+                "type": "e2b_desktop_status",
+                "desktop": {
+                    "sandbox_id": info.sandbox_id,
+                    "status": info.status.value,
+                    "stream_url": info.stream_url,
+                },
+                "timestamp": time.time(),
+            }
+        )
         await self._event_bus.publish(info.user_id, event)
 
     async def destroy_all(self) -> None:

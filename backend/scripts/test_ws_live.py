@@ -42,7 +42,9 @@ async def main():
     parser.add_argument("--no-auth", action="store_true", help="Skip auth handshake")
     parser.add_argument("--text-only", action="store_true", help="Text mode (no audio)")
     parser.add_argument("--audio-file", type=Path, help="Send a raw PCM file (16kHz 16-bit mono)")
-    parser.add_argument("--chunk-ms", type=int, default=100, help="Audio chunk size in ms (default: 100)")
+    parser.add_argument(
+        "--chunk-ms", type=int, default=100, help="Audio chunk size in ms (default: 100)"
+    )
     parser.add_argument("--voice", default="Aoede", help="Voice name for RunConfig")
     parser.add_argument("--timeout", type=int, default=60, help="Max seconds to run (0=unlimited)")
     args = parser.parse_args()
@@ -105,7 +107,7 @@ async def main():
             timeout_task = asyncio.create_task(asyncio.sleep(args.timeout))
             tasks.add(timeout_task)
 
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        _done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for t in pending:
             t.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
@@ -123,7 +125,9 @@ async def _receive_loop(ws):
                 audio_bytes_total += len(msg)
                 audio_chunks += 1
                 if audio_chunks % 10 == 1:
-                    print(f"  [AUDIO] chunk #{audio_chunks}, {len(msg)} bytes (total: {audio_bytes_total:,} bytes)")
+                    print(
+                        f"  [AUDIO] chunk #{audio_chunks}, {len(msg)} bytes (total: {audio_bytes_total:,} bytes)"
+                    )
             else:
                 try:
                     data = json.loads(msg)
@@ -138,9 +142,13 @@ async def _receive_loop(ws):
                     elif msg_type == "response":
                         print(f"  📝 [RESPONSE] {data.get('data', '')[:200]}")
                     elif msg_type == "status":
-                        print(f"  ⚡ [STATUS] state={data.get('state')} detail={data.get('detail', '')}")
+                        print(
+                            f"  ⚡ [STATUS] state={data.get('state')} detail={data.get('detail', '')}"
+                        )
                     elif msg_type == "tool_call":
-                        print(f"  🔧 [TOOL_CALL] {data.get('tool_name')}({json.dumps(data.get('arguments', {}))})")
+                        print(
+                            f"  🔧 [TOOL_CALL] {data.get('tool_name')}({json.dumps(data.get('arguments', {}))})"
+                        )
                     elif msg_type == "tool_response":
                         result = str(data.get("result", ""))[:100]
                         print(f"  🔧 [TOOL_RESULT] {data.get('tool_name')} → {result}")
@@ -208,9 +216,12 @@ def _input_line() -> str | None:
         return None
 
 
-def _generate_sine_pcm(freq: float = 440.0, duration: float = 2.0, sample_rate: int = 16000) -> bytes:
+def _generate_sine_pcm(
+    freq: float = 440.0, duration: float = 2.0, sample_rate: int = 16000
+) -> bytes:
     """Generate a sine wave as raw PCM16 bytes (for quick testing)."""
     import math
+
     n_samples = int(sample_rate * duration)
     samples = []
     for i in range(n_samples):

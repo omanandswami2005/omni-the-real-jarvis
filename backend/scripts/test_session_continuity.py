@@ -25,7 +25,6 @@ import asyncio
 import json
 import os
 import sys
-import time
 from urllib import request as urllib_request
 
 # ── Config ──────────────────────────────────────────────────────────
@@ -61,11 +60,13 @@ def record(name: str, passed: bool, detail: str = ""):
 def get_firebase_token() -> str:
     """Get a Firebase ID token via REST API."""
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={API_KEY}"
-    payload = json.dumps({
-        "email": EMAIL,
-        "password": PASSWORD,
-        "returnSecureToken": True,
-    }).encode()
+    payload = json.dumps(
+        {
+            "email": EMAIL,
+            "password": PASSWORD,
+            "returnSecureToken": True,
+        }
+    ).encode()
     req = urllib_request.Request(url, data=payload, headers={"Content-Type": "application/json"})
     with urllib_request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read())
@@ -89,10 +90,14 @@ def api_delete(url: str, token: str):
 
 def api_post(url: str, token: str, data: dict | None = None):
     body = json.dumps(data or {}).encode()
-    req = urllib_request.Request(url, data=body, headers={
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    })
+    req = urllib_request.Request(
+        url,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
     with urllib_request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read())
 
@@ -112,7 +117,7 @@ async def read_messages(ws, label: str, count: int = 10, timeout: float = 6.0):
             msg_type = data.get("type", data.get("status", "?"))
             print(f"    [{label}] {msg_type}: {json.dumps(data, indent=None)[:180]}")
             msgs.append(data)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             break
         except Exception as e:
             print(f"    [{label}] error: {e}")
@@ -123,6 +128,7 @@ async def read_messages(ws, label: str, count: int = 10, timeout: float = 6.0):
 async def connect_client(ws_url: str, token: str, client_type: str, session_id: str = ""):
     """Connect a WS client, send auth, return (ws, messages)."""
     import websockets
+
     ws = await websockets.connect(ws_url, close_timeout=5)
     auth_msg = {
         "type": "auth",
@@ -142,19 +148,23 @@ def find_msg(msgs: list, msg_type: str) -> dict | None:
 
 
 def find_auth(msgs: list) -> dict | None:
-    return next((m for m in msgs if m.get("type") == "auth_response" or m.get("status") in ("ok", "error")), None)
+    return next(
+        (m for m in msgs if m.get("type") == "auth_response" or m.get("status") in ("ok", "error")),
+        None,
+    )
 
 
 # ── Tests ──────────────────────────────────────────────────────────
 
 
-async def test_cross_client_session_continuity(ws_url: str, chat_url: str, api_url: str, token: str):
+async def test_cross_client_session_continuity(
+    ws_url: str, chat_url: str, api_url: str, token: str
+):
     """Test 1: Desktop connects, then mobile connects — both should share the same session."""
-    import websockets
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("TEST 1: Cross-client session continuity (desktop → mobile)")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # --- DESKTOP connects ---
     print(f"\n{INFO} Connecting DESKTOP (web) client...")
@@ -193,23 +203,34 @@ async def test_cross_client_session_continuity(ws_url: str, chat_url: str, api_u
     print(f"    {INFO} Mobile other_clients_online: {mobile_others}")
 
     # Check: mobile should see desktop as online
-    record("Mobile sees desktop online", "web" in mobile_others,
-           f"other_clients={mobile_others}")
+    record("Mobile sees desktop online", "web" in mobile_others, f"other_clients={mobile_others}")
 
     # Check: both should be on the same Firestore session
-    record("Same Firestore session", desktop_session == mobile_session and bool(mobile_session),
-           f"desktop={desktop_session[:12]}, mobile={mobile_session[:12]}")
+    record(
+        "Same Firestore session",
+        desktop_session == mobile_session and bool(mobile_session),
+        f"desktop={desktop_session[:12]}, mobile={mobile_session[:12]}",
+    )
 
     # Check: mobile should have received a session_suggestion
     suggestion = find_msg(mobile_msgs, "session_suggestion")
-    record("Mobile received session_suggestion", suggestion is not None,
-           f"suggestion={'yes' if suggestion else 'no'}")
+    record(
+        "Mobile received session_suggestion",
+        suggestion is not None,
+        f"suggestion={'yes' if suggestion else 'no'}",
+    )
 
     if suggestion:
-        record("Suggestion has session_id", bool(suggestion.get("session_id")),
-               suggestion.get("session_id", "")[:16])
-        record("Suggestion lists web client", "web" in (suggestion.get("available_clients") or []),
-               f"available_clients={suggestion.get('available_clients')}")
+        record(
+            "Suggestion has session_id",
+            bool(suggestion.get("session_id")),
+            suggestion.get("session_id", "")[:16],
+        )
+        record(
+            "Suggestion lists web client",
+            "web" in (suggestion.get("available_clients") or []),
+            f"available_clients={suggestion.get('available_clients')}",
+        )
 
     # Check: desktop should receive client_status_update about mobile joining
     print(f"\n{INFO} Checking desktop received mobile's connect event...")
@@ -220,14 +241,15 @@ async def test_cross_client_session_continuity(ws_url: str, chat_url: str, api_u
     if status_update:
         clients = status_update.get("clients", [])
         client_types = [c.get("client_type") for c in clients]
-        record("Status update includes both clients",
-               "web" in client_types and "mobile" in client_types,
-               f"client_types={client_types}")
+        record(
+            "Status update includes both clients",
+            "web" in client_types and "mobile" in client_types,
+            f"client_types={client_types}",
+        )
 
     # Check for session_suggestion on desktop (via EventBus relay)
     desktop_suggestion = find_msg(desktop_late, "session_suggestion")
-    record("Desktop received session_suggestion from mobile",
-           desktop_suggestion is not None)
+    record("Desktop received session_suggestion from mobile", desktop_suggestion is not None)
 
     # --- Cleanup ---
     await desktop_ws.close()
@@ -237,9 +259,9 @@ async def test_cross_client_session_continuity(ws_url: str, chat_url: str, api_u
 
 async def test_session_deletion(api_url: str, token: str, session_id: str | None = None):
     """Test 2: Session deletion API cleans up correctly."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("TEST 2: Session deletion API")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # List sessions
     print(f"\n{INFO} Listing sessions...")
@@ -269,8 +291,11 @@ async def test_session_deletion(api_url: str, token: str, session_id: str | None
     print(f"\n{INFO} Verifying session is deleted...")
     remaining = api_get(f"{api_url}/sessions", token)
     still_exists = any(s["id"] == session_id for s in remaining)
-    record("Session removed from list", not still_exists,
-           f"{'still present!' if still_exists else 'gone'}")
+    record(
+        "Session removed from list",
+        not still_exists,
+        f"{'still present!' if still_exists else 'gone'}",
+    )
 
     # Verify getting the deleted session returns 404
     try:
@@ -285,9 +310,9 @@ async def test_chat_cross_client(ws_url: str, chat_url: str, token: str):
     """Test 3: /ws/chat receives cross-client events from /ws/live."""
     import websockets
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("TEST 3: /ws/chat cross-client event relay")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # Connect desktop on /ws/live
     print(f"\n{INFO} Connecting desktop on /ws/live...")
@@ -338,11 +363,10 @@ async def test_chat_cross_client(ws_url: str, chat_url: str, token: str):
 
 async def test_client_api(api_url: str, ws_url: str, token: str):
     """Test 4: GET /clients API shows connected devices."""
-    import websockets
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("TEST 4: GET /clients API")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # Connect a client first
     print(f"\n{INFO} Connecting desktop client...")
@@ -356,8 +380,11 @@ async def test_client_api(api_url: str, ws_url: str, token: str):
     print(f"\n{INFO} Querying GET /clients...")
     try:
         clients = api_get(f"{api_url}/clients", token)
-        record("GET /clients returns data", isinstance(clients, list) and len(clients) > 0,
-               f"count={len(clients) if isinstance(clients, list) else '?'}")
+        record(
+            "GET /clients returns data",
+            isinstance(clients, list) and len(clients) > 0,
+            f"count={len(clients) if isinstance(clients, list) else '?'}",
+        )
         if isinstance(clients, list) and clients:
             types = [c.get("client_type") for c in clients]
             record("Web client visible", "web" in types, f"types={types}")
@@ -370,7 +397,7 @@ async def test_client_api(api_url: str, ws_url: str, token: str):
     await asyncio.sleep(2)
     try:
         clients_after = api_get(f"{api_url}/clients", token)
-        web_still = any(c.get("client_type") == "web" for c in (clients_after or []))
+        any(c.get("client_type") == "web" for c in (clients_after or []))
         # Firestore presence may linger, but local should be gone
         print(f"    {INFO} Clients after disconnect: {len(clients_after or [])}")
     except Exception:
@@ -393,9 +420,9 @@ async def main():
         print("ERROR: pip install websockets")
         sys.exit(1)
 
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print("  Session Continuity & Cross-Client Test Suite")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Target:  {ws_url}")
     print(f"  API:     {api_url}")
     print(f"  User:    {EMAIL}")
@@ -405,7 +432,7 @@ async def main():
     print(f"  {PASS} Token acquired ({len(token)} chars)")
 
     # Run tests
-    session_id = await test_cross_client_session_continuity(ws_url, chat_url, api_url, token)
+    await test_cross_client_session_continuity(ws_url, chat_url, api_url, token)
     await asyncio.sleep(1)
     await test_session_deletion(api_url, token, session_id=None)
     await asyncio.sleep(1)
@@ -414,16 +441,16 @@ async def main():
     await test_client_api(api_url, ws_url, token)
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  RESULTS SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     passed = sum(1 for _, p, _ in results if p)
     failed = sum(1 for _, p, _ in results if not p)
     for name, ok, detail in results:
         mark = PASS if ok else FAIL
         print(f"  {mark} {name}" + (f"  ({detail})" if detail and not ok else ""))
     print(f"\n  Total: {passed} passed, {failed} failed out of {len(results)}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     if failed > 0:
         sys.exit(1)

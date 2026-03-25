@@ -14,8 +14,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from app.middleware.auth_middleware import CurrentUser
 from app.api.ws_live import invalidate_runner
+from app.middleware.auth_middleware import CurrentUser
 from app.models.plugin import (
     PluginKind,
     PluginManifest,
@@ -136,11 +136,13 @@ async def get_capabilities_snapshot(user: CurrentUser):
     for ct, cap_data in capabilities.items():
         for tool_def in cap_data.get("local_tools", []):
             if tool_def.get("name"):
-                t3.append({
-                    "name": tool_def["name"],
-                    "description": tool_def.get("description", ""),
-                    "client_type": str(ct),
-                })
+                t3.append(
+                    {
+                        "name": tool_def["name"],
+                        "description": tool_def.get("description", ""),
+                        "client_type": str(ct),
+                    }
+                )
 
     return {
         "t1": t1,
@@ -192,7 +194,10 @@ async def get_plugin_capabilities(plugin_id: str, user: CurrentUser):
     schemas = await registry.get_tool_schemas(plugin_id, user.uid)
     summaries = registry._discovered_summaries.get(plugin_id, manifest.tools_summary)
     tools = (
-        [{"name": s.name, "description": s.description, "parameters": s.parameters} for s in schemas]
+        [
+            {"name": s.name, "description": s.description, "parameters": s.parameters}
+            for s in schemas
+        ]
         if schemas
         else [{"name": s.name, "description": s.description, "parameters": {}} for s in summaries]
     )
@@ -285,6 +290,7 @@ async def oauth_callback(request: Request):
         # Invalidate the runner cache so the next WS connection picks up the
         # new plugin's tools (tools are baked into the runner at build time).
         from app.api.ws_live import invalidate_runner
+
         invalidate_runner(user_id)
 
         return HTMLResponse(

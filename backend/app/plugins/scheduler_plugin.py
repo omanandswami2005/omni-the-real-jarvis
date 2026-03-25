@@ -108,8 +108,7 @@ def _parse_schedule(schedule: str) -> tuple[str, str]:
     # Check if it looks like a cron expression (5 space-separated fields)
     parts = schedule.strip().split()
     if len(parts) == 5 and all(
-        any(c.isdigit() or c in "*/-,MONTUEWEDTHUFRISATSUN" for c in p.upper())
-        for p in parts
+        any(c.isdigit() or c in "*/-,MONTUEWEDTHUFRISATSUN" for c in p.upper()) for p in parts
     ):
         return schedule.strip(), "cron"
 
@@ -120,6 +119,7 @@ def _parse_schedule(schedule: str) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 # Tool context helper — get user_id from ADK tool context
 # ---------------------------------------------------------------------------
+
 
 def _get_user_id(tool_context=None) -> str:
     """Extract user_id from ADK tool context."""
@@ -209,7 +209,9 @@ async def create_scheduled_task(
         "schedule_type": task.schedule_type,
         "action": task.action,
         "status": task.status,
-        "notify": f"Will notify via {notify_channel}" if notify_channel else "No notification configured",
+        "notify": f"Will notify via {notify_channel}"
+        if notify_channel
+        else "No notification configured",
         "message": f"Scheduled '{description}' with cron '{cron_expr}'",
     }
 

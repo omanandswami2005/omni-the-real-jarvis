@@ -174,10 +174,14 @@ def create_agent(
     # Escape curly braces so ADK's template engine doesn't treat them as variables
     safe_tool_names = [n.replace("{", "{{").replace("}", "}}") for n in tool_names]
     tool_guard = (
-        "\n\nSTRICT TOOL REGISTRY: You can ONLY call these tools: "
-        + ", ".join(safe_tool_names)
-        + ". Do NOT call any tool name not in this list."
-    ) if tool_names else ""
+        (
+            "\n\nSTRICT TOOL REGISTRY: You can ONLY call these tools: "
+            + ", ".join(safe_tool_names)
+            + ". Do NOT call any tool name not in this list."
+        )
+        if tool_names
+        else ""
+    )
 
     # AgentTool runs personas in isolation — no transfer_to_agent available.
     # Instruct persona to do its best or report inability clearly.

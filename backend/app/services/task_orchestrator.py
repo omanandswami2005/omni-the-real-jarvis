@@ -101,21 +101,14 @@ class TaskOrchestrator:
                 .where(filter=firestore.FieldFilter("user_id", "==", user_id))
                 .order_by("created_at", direction=firestore.Query.DESCENDING)
             )
-            return [
-                PlannedTask.from_firestore(snap.id, snap.to_dict())
-                for snap in query.stream()
-            ]
+            return [PlannedTask.from_firestore(snap.id, snap.to_dict()) for snap in query.stream()]
         except Exception:
             # Fallback: query without order_by (no composite index)
             logger.warning("list_tasks_fallback", user_id=user_id)
-            query = (
-                self.db.collection(COLLECTION)
-                .where(filter=firestore.FieldFilter("user_id", "==", user_id))
+            query = self.db.collection(COLLECTION).where(
+                filter=firestore.FieldFilter("user_id", "==", user_id)
             )
-            tasks = [
-                PlannedTask.from_firestore(snap.id, snap.to_dict())
-                for snap in query.stream()
-            ]
+            tasks = [PlannedTask.from_firestore(snap.id, snap.to_dict()) for snap in query.stream()]
             tasks.sort(key=lambda t: t.created_at, reverse=True)
             return tasks
 
@@ -160,9 +153,13 @@ class TaskOrchestrator:
             task.status = TaskStatus.AWAITING_CONFIRMATION
             await self._save_task(task)
             await self._publish_event(task, "task_planned")
-            logger.info("task_planned", task_id=task.id, step_count=len(steps),
-                        blockers=len(validation.get("blockers", [])),
-                        warnings=len(validation.get("warnings", [])))
+            logger.info(
+                "task_planned",
+                task_id=task.id,
+                step_count=len(steps),
+                blockers=len(validation.get("blockers", [])),
+                warnings=len(validation.get("warnings", [])),
+            )
         except Exception:
             task.status = TaskStatus.FAILED
             task.result_summary = "Failed to decompose task into steps."
@@ -397,6 +394,7 @@ class TaskOrchestrator:
         # Also include T2 MCP plugin tools if connected for this user
         try:
             from app.services.plugin_registry import get_plugin_registry
+
             registry = get_plugin_registry()
             t2_tools = registry.get_tools_for_capabilities(task.user_id, caps)
             if t2_tools:
@@ -419,8 +417,7 @@ class TaskOrchestrator:
         full_instruction = step.instruction
         if context_str:
             full_instruction = (
-                f"Context from previous steps:\n{context_str}\n\n"
-                f"Your task:\n{step.instruction}"
+                f"Context from previous steps:\n{context_str}\n\nYour task:\n{step.instruction}"
             )
 
         agent = Agent(
@@ -522,11 +519,13 @@ class TaskOrchestrator:
         now = datetime.now(UTC)
         self.db.collection(COLLECTION).document(task_id).collection("inputs").document(
             input_id
-        ).update({
-            "response": response,
-            "status": InputStatus.RESPONDED.value,
-            "responded_at": now,
-        })
+        ).update(
+            {
+                "response": response,
+                "status": InputStatus.RESPONDED.value,
+                "responded_at": now,
+            }
+        )
 
         # Resume the waiting future
         future = self._pending_inputs.get(input_id)
@@ -653,66 +652,72 @@ class TaskOrchestrator:
 
     async def _publish_event(self, task: PlannedTask, event_type: str) -> None:
         """Publish a task-level event to the EventBus."""
-        event = json.dumps({
-            "type": event_type,
-            "task": {
-                "id": task.id,
-                "title": task.title,
-                "description": task.description,
-                "status": task.status.value,
-                "steps": [
-                    {
-                        "id": s.id,
-                        "title": s.title,
-                        "description": s.description,
-                        "persona_id": s.persona_id,
-                        "status": s.status.value,
-                        "output": s.output[:500] if s.output else "",
-                        "error": s.error,
-                    }
-                    for s in task.steps
-                ],
-                "progress": round(task.progress * 100, 1),
-                "result_summary": task.result_summary,
-                "context": task.context,
-            },
-            "timestamp": time.time(),
-        })
+        event = json.dumps(
+            {
+                "type": event_type,
+                "task": {
+                    "id": task.id,
+                    "title": task.title,
+                    "description": task.description,
+                    "status": task.status.value,
+                    "steps": [
+                        {
+                            "id": s.id,
+                            "title": s.title,
+                            "description": s.description,
+                            "persona_id": s.persona_id,
+                            "status": s.status.value,
+                            "output": s.output[:500] if s.output else "",
+                            "error": s.error,
+                        }
+                        for s in task.steps
+                    ],
+                    "progress": round(task.progress * 100, 1),
+                    "result_summary": task.result_summary,
+                    "context": task.context,
+                },
+                "timestamp": time.time(),
+            }
+        )
         await self._event_bus.publish(task.user_id, event)
 
     async def _publish_step_event(self, task: PlannedTask, step: TaskStep) -> None:
         """Publish a step-level progress event."""
-        event = json.dumps({
-            "type": "task_step_update",
-            "task_id": task.id,
-            "step": {
-                "id": step.id,
-                "title": step.title,
-                "persona_id": step.persona_id,
-                "status": step.status.value,
-                "output": step.output[:500] if step.output else "",
-                "error": step.error,
-            },
-            "progress": round(task.progress * 100, 1),
-            "timestamp": time.time(),
-        })
+        event = json.dumps(
+            {
+                "type": "task_step_update",
+                "task_id": task.id,
+                "step": {
+                    "id": step.id,
+                    "title": step.title,
+                    "persona_id": step.persona_id,
+                    "status": step.status.value,
+                    "output": step.output[:500] if step.output else "",
+                    "error": step.error,
+                },
+                "progress": round(task.progress * 100, 1),
+                "timestamp": time.time(),
+            }
+        )
         await self._event_bus.publish(task.user_id, event)
 
     async def _publish_input_event(self, task: PlannedTask, human_input: HumanInput) -> None:
         """Publish a human-input-required event."""
-        event = json.dumps({
-            "type": "task_input_required",
-            "task_id": task.id,
-            "input": {
-                "id": human_input.id,
-                "step_id": human_input.step_id,
-                "input_type": human_input.input_type.value,
-                "prompt": human_input.prompt,
-                "options": human_input.options,
-                "default_value": human_input.default_value,
-            },
-            "timestamp": time.time(),
-        })
+        event = json.dumps(
+            {
+                "type": "task_input_required",
+                "task_id": task.id,
+                "input": {
+                    "id": human_input.id,
+                    "step_id": human_input.step_id,
+                    "input_type": human_input.input_type.value,
+                    "prompt": human_input.prompt,
+                    "options": human_input.options,
+                    "default_value": human_input.default_value,
+                },
+                "timestamp": time.time(),
+            }
+        )
         await self._event_bus.publish(task.user_id, event)
 
     # ── Resource Validation ─────────────────────────────────────────────
@@ -729,6 +734,7 @@ class TaskOrchestrator:
         # Check T2 plugin availability based on step instructions
         try:
             from app.services.plugin_registry import get_plugin_registry
+
             registry = get_plugin_registry()
             enabled_ids = set(registry.get_enabled_ids(task.user_id))
         except Exception:
@@ -763,6 +769,7 @@ class TaskOrchestrator:
 
         try:
             from app.tools.capabilities_tool import _get_capabilities_data
+
             data = _get_capabilities_data(user_id)
 
             # T2 enabled plugins
@@ -805,10 +812,7 @@ class TaskOrchestrator:
                 "Try again or simplify the step."
             )
         if "rate limit" in lower or "quota" in lower or "429" in lower:
-            return (
-                "Rate limit reached for the AI service. "
-                "Wait a few minutes and retry."
-            )
+            return "Rate limit reached for the AI service. Wait a few minutes and retry."
         if "not found" in lower and "tool" in lower:
             return (
                 f"A required tool was not found: {msg[:300]}. "
@@ -851,7 +855,9 @@ class TaskOrchestrator:
 
         if failed_steps:
             lines.append("")
-            lines.append(f"⚠ {len(failed_steps)} step(s) failed. You can retry failed steps or edit the task plan.")
+            lines.append(
+                f"⚠ {len(failed_steps)} step(s) failed. You can retry failed steps or edit the task plan."
+            )
 
         return "\n".join(lines)
 

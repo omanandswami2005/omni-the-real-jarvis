@@ -29,7 +29,6 @@ from google.adk.tools.agent_tool import AgentTool
 from app.agents.agent_factory import LIVE_MODEL, create_agent
 from app.agents.multimodal_agent_tool import MultimodalAgentTool
 from app.agents.personas import get_default_personas
-from app.tools.cross_client import get_cross_client_tools
 from app.middleware.agent_callbacks import (
     after_agent_callback,
     before_agent_callback,
@@ -40,6 +39,7 @@ from app.middleware.agent_callbacks import (
 )
 from app.models.persona import PersonaResponse
 from app.tools.capabilities_tool import get_capability_tools
+from app.tools.cross_client import get_cross_client_tools
 from app.tools.task_tools import get_human_input_tools, get_planned_task_tools
 from app.utils.logging import get_logger
 
@@ -52,9 +52,7 @@ def _build_root_instruction(
 ) -> str:
     """Build a lightweight root instruction — delegates via AgentTool calls."""
 
-    persona_text = "\n".join(
-        f"- **{pid}(request)** — {pname}" for pid, pname in persona_names
-    )
+    persona_text = "\n".join(f"- **{pid}(request)** — {pname}" for pid, pname in persona_names)
     non_persona_ids = {pid for pid, _ in persona_names}
     other_tools = sorted(t for t in root_tool_names if t not in non_persona_ids)
     other_list = ", ".join(other_tools) if other_tools else "(none)"
@@ -166,16 +164,16 @@ def build_root_agent(
     for p in personas:
         if p.id == "assistant":
             # Absorb assistant's T2 tools into root — no sub-agent needed.
-            root_comm_tools = tools_map.get(p.id, []) if tools_by_persona is not None else (mcp_tools or [])
+            root_comm_tools = (
+                tools_map.get(p.id, []) if tools_by_persona is not None else (mcp_tools or [])
+            )
             continue
 
         # Decide T2 tools for this persona (legacy path: flat mcp_tools for all)
         extra = tools_map.get(p.id, []) if tools_by_persona is not None else mcp_tools
 
         agent = create_agent(p, extra_tools=extra, model=effective_model)
-        persona_agent_tools.append(
-            MultimodalAgentTool(agent=agent, skip_summarization=True)
-        )
+        persona_agent_tools.append(MultimodalAgentTool(agent=agent, skip_summarization=True))
         persona_names.append((p.id, p.name))
 
     # ── Device tools: cross-client + T3 on root directly ─────────────

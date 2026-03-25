@@ -149,14 +149,14 @@ class TestSendToChrome:
             side_effect=_resolve_next_pending({"page_content": "<html>..."})
         )
         with patch("app.tools.cross_client.get_connection_manager", return_value=mock_cm):
-            result = await send_to_chrome("get_page", '{"url": "https://x.com"}', tool_context=_fake_ctx())
+            result = await send_to_chrome(
+                "get_page", '{"url": "https://x.com"}', tool_context=_fake_ctx()
+            )
         assert result == {"page_content": "<html>..."}
 
     @pytest.mark.asyncio
     async def test_sends_correct_client_type(self, mock_cm):
-        mock_cm.send_to_client = AsyncMock(
-            side_effect=_resolve_next_pending({"ok": True})
-        )
+        mock_cm.send_to_client = AsyncMock(side_effect=_resolve_next_pending({"ok": True}))
         with patch("app.tools.cross_client.get_connection_manager", return_value=mock_cm):
             await send_to_chrome("get_page", "{}", tool_context=_fake_ctx())
         args = mock_cm.send_to_client.call_args
@@ -166,20 +166,18 @@ class TestSendToChrome:
 class TestSendToDashboard:
     @pytest.mark.asyncio
     async def test_returns_result(self, mock_cm):
-        mock_cm.send_to_client = AsyncMock(
-            side_effect=_resolve_next_pending({"shown": True})
-        )
+        mock_cm.send_to_client = AsyncMock(side_effect=_resolve_next_pending({"shown": True}))
         with patch("app.tools.cross_client.get_connection_manager", return_value=mock_cm):
-            result = await send_to_dashboard("show_notification", '{"msg": "hi"}', tool_context=_fake_ctx())
+            result = await send_to_dashboard(
+                "show_notification", '{"msg": "hi"}', tool_context=_fake_ctx()
+            )
         assert result == {"shown": True}
 
 
 class TestNotifyClient:
     @pytest.mark.asyncio
     async def test_sends_notification(self, mock_cm):
-        mock_cm.send_to_client = AsyncMock(
-            side_effect=_resolve_next_pending({"received": True})
-        )
+        mock_cm.send_to_client = AsyncMock(side_effect=_resolve_next_pending({"received": True}))
         with patch("app.tools.cross_client.get_connection_manager", return_value=mock_cm):
             result = await notify_client("Hello!", "web", tool_context=_fake_ctx())
         assert result == {"received": True}
@@ -209,9 +207,7 @@ class TestListConnectedClients:
 class TestMessageFormat:
     @pytest.mark.asyncio
     async def test_message_has_correct_structure(self, mock_cm):
-        mock_cm.send_to_client = AsyncMock(
-            side_effect=_resolve_next_pending({"ok": True})
-        )
+        mock_cm.send_to_client = AsyncMock(side_effect=_resolve_next_pending({"ok": True}))
         with patch("app.tools.cross_client.get_connection_manager", return_value=mock_cm):
             await send_to_desktop("capture_screen", '{"format": "png"}', tool_context=_fake_ctx())
         sent_msg = mock_cm.send_to_client.call_args[0][2]

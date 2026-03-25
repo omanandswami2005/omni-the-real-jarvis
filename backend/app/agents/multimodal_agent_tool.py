@@ -53,9 +53,7 @@ class MultimodalAgentTool(AgentTool):
         if input_schema:
             input_value = input_schema.model_validate(args)
             parts: list[types.Part] = [
-                types.Part.from_text(
-                    text=input_value.model_dump_json(exclude_none=True)
-                )
+                types.Part.from_text(text=input_value.model_dump_json(exclude_none=True))
             ]
         else:
             parts = [types.Part.from_text(text=args["request"])]
@@ -77,15 +75,9 @@ class MultimodalAgentTool(AgentTool):
 
         # ── Runner setup (mirrors parent) ────────────────────────────
         invocation_context = tool_context._invocation_context
-        parent_app_name = (
-            invocation_context.app_name if invocation_context else None
-        )
+        parent_app_name = invocation_context.app_name if invocation_context else None
         child_app_name = parent_app_name or self.agent.name
-        plugins = (
-            invocation_context.plugin_manager.plugins
-            if self.include_plugins
-            else None
-        )
+        plugins = invocation_context.plugin_manager.plugins if self.include_plugins else None
         runner = Runner(
             app_name=child_app_name,
             agent=self.agent,
@@ -97,9 +89,7 @@ class MultimodalAgentTool(AgentTool):
         )
 
         state_dict = {
-            k: v
-            for k, v in tool_context.state.to_dict().items()
-            if not k.startswith("_adk")
+            k: v for k, v in tool_context.state.to_dict().items() if not k.startswith("_adk")
         }
         session = await runner.session_service.create_session(
             app_name=child_app_name,
@@ -126,12 +116,8 @@ class MultimodalAgentTool(AgentTool):
 
         if last_content is None or last_content.parts is None:
             return ""
-        merged_text = "\n".join(
-            p.text for p in last_content.parts if p.text and not p.thought
-        )
+        merged_text = "\n".join(p.text for p in last_content.parts if p.text and not p.thought)
         output_schema = _get_output_schema(self.agent)
         if output_schema:
-            return output_schema.model_validate_json(merged_text).model_dump(
-                exclude_none=True
-            )
+            return output_schema.model_validate_json(merged_text).model_dump(exclude_none=True)
         return merged_text
