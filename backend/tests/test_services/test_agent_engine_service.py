@@ -63,3 +63,34 @@ async def test_execute_code_decodes_text_output(svc):
     assert result["provider"] == "agent_engine"
     assert "hello from sandbox" in result["stdout"]
     assert result["sandbox_name"].endswith("sbx1")
+
+@pytest.mark.asyncio
+async def test_install_package_escapes_package_name(svc):
+    import json
+
+    output = MagicMock()
+    output.mime_type = "text/plain"
+    output.data = b"successfully installed"
+
+    sandbox_response = MagicMock()
+    sandbox_response.outputs = [output]
+
+    op = MagicMock()
+    op.response = MagicMock()
+    op.response.name = "reasoningEngines/123/sandboxEnvironments/sbx1"
+
+    mock_client = MagicMock()
+    mock_client.agent_engines.sandboxes.create.return_value = op
+    mock_client.agent_engines.sandboxes.execute_code.return_value = sandbox_response
+
+    svc._client = mock_client
+    package_name = "requests'; import os; os.system('echo hi')"
+    result = await svc.install_package(sandbox_key="abc", package=package_name)
+
+    mock_client.agent_engines.sandboxes.execute_code.assert_called_once()
+
+    call_kwargs = mock_client.agent_engines.sandboxes.execute_code.call_args.kwargs
+    code_executed = call_kwargs["input_data"]["code"]
+
+    expected_package_str = json.dumps(package_name)
+    assert f"'-q', {expected_package_str}]" in code_executed

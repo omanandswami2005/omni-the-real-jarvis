@@ -299,7 +299,7 @@ class AgentEngineService:
     async def install_package(self, *, sandbox_key: str, package: str) -> dict[str, Any]:
         code = (
             "import subprocess, sys\n"
-            f"proc = subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '{package}'], "
+            f"proc = subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', {json.dumps(package)}], "
             "capture_output=True, text=True)\n"
             "print(proc.stdout)\n"
             "print(proc.stderr)\n"
