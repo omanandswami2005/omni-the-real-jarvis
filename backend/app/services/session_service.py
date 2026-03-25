@@ -54,14 +54,14 @@ class SessionService:
             "created_at": now,
             "updated_at": now,
         }
-        self.db.collection(COLLECTION).document(session_id).set(doc)
+        await asyncio.to_thread(self.db.collection(COLLECTION).document(session_id).set, doc)
         logger.info("session_created", session_id=session_id, user_id=user_id)
         return SessionResponse(id=session_id, **doc)
 
     # ── Read one ──────────────────────────────────────────────────────
 
     async def get_session(self, user_id: str, session_id: str) -> SessionResponse:
-        snap = self.db.collection(COLLECTION).document(session_id).get()
+        snap = await asyncio.to_thread(self.db.collection(COLLECTION).document(session_id).get)
         if not snap.exists:
             raise NotFoundError("Session", session_id)
         doc = snap.to_dict()
@@ -77,7 +77,8 @@ class SessionService:
             .where(filter=firestore.FieldFilter("user_id", "==", user_id))
             .order_by("created_at", direction=firestore.Query.DESCENDING)
         )
-        return [SessionListItem(id=snap.id, **snap.to_dict()) for snap in query.stream()]
+        snaps = await asyncio.to_thread(lambda: list(query.stream()))
+        return [SessionListItem(id=snap.id, **snap.to_dict()) for snap in snaps]
 
     # ── Update ────────────────────────────────────────────────────────
 
@@ -90,7 +91,7 @@ class SessionService:
         updates = {k: v for k, v in data.model_dump(exclude_none=True).items()}
         updates["updated_at"] = datetime.now(UTC)
 
-        self.db.collection(COLLECTION).document(session_id).update(updates)
+        await asyncio.to_thread(self.db.collection(COLLECTION).document(session_id).update, updates)
         logger.info("session_updated", session_id=session_id)
         return await self.get_session(user_id, session_id)
 
@@ -99,7 +100,7 @@ class SessionService:
     async def delete_session(self, user_id: str, session_id: str) -> None:
         # Verify ownership and fetch the session (we need adk_session_id)
         session = await self.get_session(user_id, session_id)
-        self.db.collection(COLLECTION).document(session_id).delete()
+        await asyncio.to_thread(self.db.collection(COLLECTION).document(session_id).delete)
         logger.info("session_deleted", session_id=session_id, user_id=user_id)
 
         # Clean up the ADK session ID cache so deleted sessions are not reused
@@ -121,30 +122,24 @@ class SessionService:
         adk_session_id: str,
     ) -> None:
         """Store the ADK session ID on a Firestore session doc."""
-        self.db.collection(COLLECTION).document(session_id).update(
-            {
-                "adk_session_id": adk_session_id,
-                "updated_at": datetime.now(UTC),
-            }
-        )
+        await asyncio.to_thread(self.db.collection(COLLECTION).document(session_id).update, {
+            "adk_session_id": adk_session_id,
+            "updated_at": datetime.now(UTC),
+        })
 
     async def increment_message_count(self, session_id: str, count: int = 1) -> None:
         """Atomically increment message_count on a session doc."""
-        self.db.collection(COLLECTION).document(session_id).update(
-            {
-                "message_count": firestore.Increment(count),
-                "updated_at": datetime.now(UTC),
-            }
-        )
+        await asyncio.to_thread(self.db.collection(COLLECTION).document(session_id).update, {
+            "message_count": firestore.Increment(count),
+            "updated_at": datetime.now(UTC),
+        })
 
     async def update_message_count(self, session_id: str, count: int) -> None:
         """Set message_count to a specific value (to sync with actual message count)."""
-        self.db.collection(COLLECTION).document(session_id).update(
-            {
-                "message_count": count,
-                "updated_at": datetime.now(UTC),
-            }
-        )
+        await asyncio.to_thread(self.db.collection(COLLECTION).document(session_id).update, {
+            "message_count": count,
+            "updated_at": datetime.now(UTC),
+        })
 
     async def get_latest_session_for_user(self, user_id: str) -> SessionResponse | None:
         """Return the most recent session for a user, or None."""
@@ -154,7 +149,8 @@ class SessionService:
             .order_by("created_at", direction=firestore.Query.DESCENDING)
             .limit(1)
         )
-        for snap in query.stream():
+        snaps = await asyncio.to_thread(lambda: list(query.stream()))
+        for snap in snaps:
             return SessionResponse(id=snap.id, **snap.to_dict())
         return None
 
@@ -165,7 +161,7 @@ class SessionService:
         current title looks like the default timestamp-based placeholder.
         """
         try:
-            snap = self.db.collection(COLLECTION).document(session_id).get()
+            snap = await asyncio.to_thread(self.db.collection(COLLECTION).document(session_id).get)
             if not snap.exists:
                 return
             doc = snap.to_dict()
@@ -176,9 +172,7 @@ class SessionService:
 
             generated = await _generate_title(user_message)
             if generated:
-                self.db.collection(COLLECTION).document(session_id).update(
-                    {"title": generated, "updated_at": datetime.now(UTC)}
-                )
+                await asyncio.to_thread(self.db.collection(COLLECTION).document(session_id).update, {"title": generated, "updated_at": datetime.now(UTC)})
                 logger.info("session_title_generated", session_id=session_id, title=generated)
         except Exception:
             logger.debug("session_title_generation_failed", session_id=session_id, exc_info=True)
