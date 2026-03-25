@@ -12,6 +12,7 @@ Scalable across all MCP servers that follow the spec (Notion, Slack, etc.).
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import secrets
@@ -59,6 +60,16 @@ class ClientCredentials:
 
     client_id: str = ""
     client_secret: str | None = None
+
+
+@dataclass
+class OAuthSessionData:
+    """Groups tokens and related metadata for Secret Manager storage."""
+
+    tokens: OAuthTokens
+    client_creds: ClientCredentials | None = None
+    token_endpoint: str = ""
+    issuer: str = ""
 
 
 @dataclass
@@ -110,34 +121,33 @@ class OAuthService:
         self,
         user_id: str,
         plugin_id: str,
-        tokens: OAuthTokens,
-        client_creds: ClientCredentials | None = None,
-        token_endpoint: str = "",
-        issuer: str = "",
+        session_data: OAuthSessionData,
     ) -> None:
         """Persist OAuth tokens + client credentials to GCP Secret Manager."""
         # Convert monotonic expires_at → wall-clock unix time for portability
-        if tokens.expires_at > 0:
-            expires_at_unix = time.time() + max(0.0, tokens.expires_at - time.monotonic())
+        if session_data.tokens.expires_at > 0:
+            expires_at_unix = time.time() + max(
+                0.0, session_data.tokens.expires_at - time.monotonic()
+            )
         else:
             expires_at_unix = 0.0
 
         data: dict[str, str] = {
-            "access_token": tokens.access_token,
-            "token_type": tokens.token_type,
+            "access_token": session_data.tokens.access_token,
+            "token_type": session_data.tokens.token_type,
             "expires_at_unix": str(expires_at_unix),
-            "scope": tokens.scope,
+            "scope": session_data.tokens.scope,
         }
-        if tokens.refresh_token:
-            data["refresh_token"] = tokens.refresh_token
-        if client_creds:
-            data["client_id"] = client_creds.client_id
-            if client_creds.client_secret:
-                data["client_secret"] = client_creds.client_secret
-        if token_endpoint:
-            data["token_endpoint"] = token_endpoint
-        if issuer:
-            data["issuer"] = issuer
+        if session_data.tokens.refresh_token:
+            data["refresh_token"] = session_data.tokens.refresh_token
+        if session_data.client_creds:
+            data["client_id"] = session_data.client_creds.client_id
+            if session_data.client_creds.client_secret:
+                data["client_secret"] = session_data.client_creds.client_secret
+        if session_data.token_endpoint:
+            data["token_endpoint"] = session_data.token_endpoint
+        if session_data.issuer:
+            data["issuer"] = session_data.issuer
 
         try:
             secret_service.store_secrets(user_id, f"{plugin_id}-mcp-oauth", data)
@@ -150,12 +160,10 @@ class OAuthService:
                 exc_info=True,
             )
 
-    def _load_from_secret_manager(
-        self, user_id: str, plugin_id: str
-    ) -> tuple[OAuthTokens, ClientCredentials | None, str, str] | None:
+    def _load_from_secret_manager(self, user_id: str, plugin_id: str) -> OAuthSessionData | None:
         """Load OAuth tokens + client credentials from GCP Secret Manager.
 
-        Returns (tokens, client_creds, token_endpoint, issuer) or None if not found.
+        Returns OAuthSessionData or None if not found.
         """
         try:
             data = secret_service.load_secrets(user_id, f"{plugin_id}-mcp-oauth")
@@ -185,7 +193,12 @@ class OAuthService:
             token_endpoint = data.get("token_endpoint", "")
             issuer = data.get("issuer", "")
             logger.info("mcp_oauth_loaded_from_sm", user_id=user_id, plugin_id=plugin_id)
-            return tokens, client_creds, token_endpoint, issuer
+            return OAuthSessionData(
+                tokens=tokens,
+                client_creds=client_creds,
+                token_endpoint=token_endpoint,
+                issuer=issuer,
+            )
         except Exception:
             return None
 
@@ -398,10 +411,12 @@ class OAuthService:
         self._save_to_secret_manager(
             flow.user_id,
             flow.plugin_id,
-            tokens,
-            flow.client_creds,
-            flow.metadata.token_endpoint,
-            flow.metadata.issuer,
+            OAuthSessionData(
+                tokens=tokens,
+                client_creds=flow.client_creds,
+                token_endpoint=flow.metadata.token_endpoint,
+                issuer=flow.metadata.issuer,
+            ),
         )
 
         logger.info("oauth_tokens_received", plugin_id=flow.plugin_id, user_id=flow.user_id)
@@ -416,7 +431,9 @@ class OAuthService:
         if tokens is None:
             loaded = self._load_from_secret_manager(user_id, plugin_id)
             if loaded:
-                tokens, client_creds, _ep, issuer = loaded
+                tokens = loaded.tokens
+                client_creds = loaded.client_creds
+                issuer = loaded.issuer
                 self._tokens[key] = tokens
                 if client_creds and issuer:
                     self._client_cache[(issuer, "Omni Hub")] = client_creds
@@ -431,7 +448,9 @@ class OAuthService:
         if tokens is None:
             loaded = self._load_from_secret_manager(user_id, plugin_id)
             if loaded:
-                tokens, client_creds, _ep, issuer = loaded
+                tokens = loaded.tokens
+                client_creds = loaded.client_creds
+                issuer = loaded.issuer
                 self._tokens[key] = tokens
                 if client_creds and issuer:
                     self._client_cache[(issuer, "Omni Hub")] = client_creds
@@ -456,7 +475,10 @@ class OAuthService:
         if tokens is None:
             loaded = self._load_from_secret_manager(user_id, plugin_id)
             if loaded:
-                tokens, _sm_client_creds, _sm_token_endpoint, _sm_issuer = loaded
+                tokens = loaded.tokens
+                _sm_client_creds = loaded.client_creds
+                _sm_token_endpoint = loaded.token_endpoint
+                _sm_issuer = loaded.issuer
                 self._tokens[key] = tokens
                 if _sm_client_creds and _sm_issuer:
                     self._client_cache[(_sm_issuer, "Omni Hub")] = _sm_client_creds
@@ -523,10 +545,8 @@ class OAuthService:
             if resp.status_code != 200:
                 # Parse error type from response body
                 error_code = ""
-                try:
+                with contextlib.suppress(Exception):
                     error_code = resp.json().get("error", "")
-                except Exception:
-                    pass
                 logger.warning(
                     "oauth_refresh_failed",
                     status=resp.status_code,
@@ -545,10 +565,8 @@ class OAuthService:
                         user_id=user_id,
                         plugin_id=plugin_id,
                     )
-                    try:
+                    with contextlib.suppress(Exception):
                         secret_service.delete_secrets(user_id, f"{plugin_id}-mcp-oauth")
-                    except Exception:
-                        pass
                 return None
             data = resp.json()
 
@@ -566,10 +584,12 @@ class OAuthService:
         self._save_to_secret_manager(
             user_id,
             plugin_id,
-            new_tokens,
-            client_creds,
-            token_endpoint,
-            issuer,
+            OAuthSessionData(
+                tokens=new_tokens,
+                client_creds=client_creds,
+                token_endpoint=token_endpoint,
+                issuer=issuer,
+            ),
         )
 
         logger.info("oauth_token_refreshed", plugin_id=plugin_id, user_id=user_id)
