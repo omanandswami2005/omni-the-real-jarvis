@@ -1,0 +1,90 @@
+/**
+ * Layout: AppShell — Main application shell with sidebar + content area.
+ * Wraps all authenticated routes with the global VoiceProvider so voice
+ * interaction persists across page navigations.
+ */
+
+import { Outlet } from 'react-router';
+import Sidebar from '@/components/layout/Sidebar';
+import TopBar from '@/components/layout/TopBar';
+import MobileNav from '@/components/layout/MobileNav';
+import FloatingVoiceBubble from '@/components/chat/FloatingVoiceBubble';
+import MediaPreviewOverlay from '@/components/chat/MediaPreviewOverlay';
+import PermissionErrorBanner from '@/components/chat/PermissionErrorBanner';
+import SessionSuggestionBanner from '@/components/clients/SessionSuggestionBanner';
+import CommandPalette from '@/components/layout/CommandPalette';
+import { VoiceProvider, useVoice } from '@/hooks/useVoiceProvider';
+import { useBootstrap } from '@/hooks/useBootstrap';
+import { useEventSocket } from '@/hooks/useEventSocket';
+import { useChatWebSocket } from '@/hooks/useChatWebSocket';
+import { useIsMobile } from '@/hooks/useMediaQuery';
+
+export function AppShell() {
+  return (
+    <VoiceProvider>
+      <ShellLayout />
+    </VoiceProvider>
+  );
+}
+
+function ShellLayout() {
+  const isMobile = useIsMobile();
+  const voice = useVoice();
+  useBootstrap();
+  useEventSocket();
+  useChatWebSocket();
+
+  return (
+    <div className="flex h-screen bg-background text-foreground">
+      <Sidebar />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <TopBar />
+        <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
+          <Outlet />
+        </main>
+      </div>
+      {isMobile && <MobileNav />}
+
+      {/* Session continuity suggestion banner */}
+      <SessionSuggestionBanner />
+
+      {/* Permission denied / device busy / not-found toast */}
+      <PermissionErrorBanner
+        error={voice.permissionError}
+        onDismiss={voice.clearPermissionError}
+      />
+
+      {/* Live camera / screen share PiP preview */}
+      {voice.isVideoActive && (
+        <MediaPreviewOverlay
+          stream={voice.getPreviewStream()}
+          source={voice.videoSource}
+          onClose={voice.videoSource === 'screen' ? voice.toggleScreen : voice.toggleCamera}
+          onFlipCamera={voice.videoSource === 'camera' ? voice.flipCamera : undefined}
+        />
+      )}
+
+      {/* Global command palette (⌘K) */}
+      <CommandPalette />
+
+      {/* Global floating voice bubble — always visible */}
+      <FloatingVoiceBubble
+        isRecording={voice.isRecording}
+        isMuted={voice.isMuted}
+        isScreenSharing={voice.isScreenSharing}
+        isCameraOn={voice.isCameraOn}
+        isVideoActive={voice.isVideoActive}
+        captureVolume={voice.captureVolume}
+        playbackVolume={voice.playbackVolume}
+        micBlocked={voice.micBlocked}
+        onToggleRecording={voice.toggleRecording}
+        onToggleMute={voice.toggleMute}
+        onToggleScreen={voice.toggleScreen}
+        onToggleCamera={voice.toggleCamera}
+        isConnected={voice.isConnected}
+      />
+    </div>
+  );
+}
+
+export default AppShell;

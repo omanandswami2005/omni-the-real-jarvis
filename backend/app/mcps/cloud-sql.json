@@ -1,0 +1,36 @@
+{
+    "id": "cloud-sql",
+    "name": "Cloud SQL",
+    "description": "Query Google Cloud SQL databases — PostgreSQL, MySQL, SQL Server.",
+    "kind": "mcp_stdio",
+    "category": "data",
+    "command": "npx",
+    "args": [
+        "-y",
+        "@anthropic/mcp-server-postgres"
+    ],
+    "env_keys": [
+        "CLOUD_SQL_CONNECTION_STRING"
+    ],
+    "requires_auth": true,
+    "icon": "cloud-sql",
+    "tags": [
+        "data",
+        "gcp",
+        "sql"
+    ],
+    "tools_summary": [
+        {
+            "name": "query",
+            "description": "Run a read-only SQL query against the database"
+        },
+        {
+            "name": "list_tables",
+            "description": "List all tables in the database"
+        },
+        {
+            "name": "describe_table",
+            "description": "Get schema and column info for a table"
+        }
+    ]
+}

@@ -1,0 +1,3 @@
+Reconnection	Must implement yourself (exponential backoff).
+Room/namespace broadcasting	Must implement yourself.
+Cross-client event routing	Must implement yourself (message type dispatch).

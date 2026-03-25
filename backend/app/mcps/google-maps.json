@@ -1,0 +1,53 @@
+{
+    "id": "google-maps",
+    "name": "Google Maps",
+    "description": "Geocoding, directions, places, and distance matrix via the Google Maps API.",
+    "kind": "mcp_stdio",
+    "singleton": true,
+    "category": "search",
+    "command": "npx",
+    "args": [
+        "-y",
+        "@modelcontextprotocol/server-google-maps"
+    ],
+    "env_keys": [
+        "GOOGLE_MAPS_API_KEY"
+    ],
+    "requires_auth": true,
+    "icon": "google-maps",
+    "tags": [
+        "search",
+        "maps",
+        "gcp"
+    ],
+    "tools_summary": [
+        {
+            "name": "maps_geocode",
+            "description": "Convert an address to coordinates"
+        },
+        {
+            "name": "maps_reverse_geocode",
+            "description": "Convert coordinates to an address"
+        },
+        {
+            "name": "maps_search_places",
+            "description": "Search for places using Google Places API"
+        },
+        {
+            "name": "maps_place_details",
+            "description": "Get detailed info about a specific place"
+        },
+        {
+            "name": "maps_distance_matrix",
+            "description": "Calculate travel distance and time between locations"
+        },
+        {
+            "name": "maps_directions",
+            "description": "Get directions between two locations"
+        },
+        {
+            "name": "maps_elevation",
+            "description": "Get elevation data for locations"
+        }
+    ]
+}
