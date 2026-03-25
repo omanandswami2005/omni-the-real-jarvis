@@ -38,6 +38,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 # Load .env so app.config.get_settings() can find GCP project, location, etc.
 try:
     from dotenv import load_dotenv
+
     load_dotenv(BACKEND_DIR / ".env")
 except ImportError:
     pass
@@ -51,6 +52,7 @@ TEST_USER_ID = "test-image-gen-user"
 # ---------------------------------------------------------------------------
 class _MockToolContext:
     """Stand-in for google.adk.tools.ToolContext with only user_id."""
+
     def __init__(self, user_id: str = TEST_USER_ID):
         self.user_id = user_id
 
@@ -58,6 +60,7 @@ class _MockToolContext:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _save_image(data_b64: str, mime_type: str, prefix: str) -> Path:
     """Decode base64 image and save to OUTPUT_DIR."""
@@ -102,7 +105,9 @@ def _print_payload(payload: dict, label: str) -> None:
                     part.get("mime_type", "image/png"),
                     f"interleaved_{img_idx}",
                 )
-                print(f"         [{i}] IMAGE: saved → {path}  ({path.stat().st_size / 1024:.0f} KB)")
+                print(
+                    f"         [{i}] IMAGE: saved → {path}  ({path.stat().st_size / 1024:.0f} KB)"
+                )
 
     # Standalone images list
     images = payload.get("images", [])
@@ -120,6 +125,7 @@ def _print_payload(payload: dict, label: str) -> None:
 # Test runner
 # ---------------------------------------------------------------------------
 
+
 async def run_test(args):
     """Import production tools and run them directly."""
     # Late imports so .env is loaded first
@@ -130,9 +136,9 @@ async def run_test(args):
         generate_rich_image,
     )
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  Image Generation Test — Direct Tool Invocation")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Model (all):  {GEMINI_IMAGE_MODEL}")
     print(f"  Output dir:   {OUTPUT_DIR}")
     print()
@@ -214,13 +220,15 @@ async def run_test(args):
 
     # ── Summary ──
     print("[3/3] Summary")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     for name, res in results.items():
         status = res.get("status", "?")
         icon = "✅" if status == "PASS" else ("⚠️ " if "WARN" in status else "❌")
         print(f"  {icon} {name:>15}: {status}")
         if "elapsed" in res:
-            print(f"                    Time: {res['elapsed']:.1f}s  Images: {res.get('images', 0)}")
+            print(
+                f"                    Time: {res['elapsed']:.1f}s  Images: {res.get('images', 0)}"
+            )
         if res.get("parts"):
             print(f"                    Interleaved parts: {res['parts']}")
 
@@ -231,7 +239,7 @@ async def run_test(args):
             size_kb = f.stat().st_size / 1024
             print(f"       {f.name}  ({size_kb:.0f} KB)")
 
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 def main():

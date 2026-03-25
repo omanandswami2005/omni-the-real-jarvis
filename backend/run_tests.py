@@ -1,7 +1,8 @@
 """Temporary script to run tests and capture results."""
+
+import os
 import subprocess
 import sys
-import os
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -11,8 +12,7 @@ out_path = os.path.join(os.getcwd(), "test-output.txt")
 
 with open(out_path, "w") as outf:
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests/", "--tb=short", "-v",
-         f"--junitxml={xml_path}"],
+        [sys.executable, "-m", "pytest", "tests/", "--tb=short", "-v", f"--junitxml={xml_path}"],
         stdout=outf,
         stderr=subprocess.STDOUT,
         timeout=300,
@@ -24,6 +24,7 @@ print(f"OUT_SIZE={os.path.getsize(out_path)}")
 
 if os.path.exists(xml_path):
     import xml.etree.ElementTree as ET
+
     tree = ET.parse(xml_path)
     root = tree.getroot()
     ts = root.find("testsuite") if root.tag != "testsuite" else root

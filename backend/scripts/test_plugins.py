@@ -14,13 +14,13 @@ Run from backend directory:
 from __future__ import annotations
 
 import asyncio
-import sys
 import os
+import sys
 
 # Ensure app is importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.utils.logging import setup_logging, get_logger
+from app.utils.logging import get_logger, setup_logging
 
 setup_logging("INFO")
 logger = get_logger(__name__)
@@ -70,7 +70,10 @@ async def test_wikipedia_mcp():
 
     # Enable Wikipedia
     from app.models.plugin import PluginToggle
-    result = await registry.toggle_plugin(TEST_USER, PluginToggle(plugin_id="wikipedia", enabled=True))
+
+    result = await registry.toggle_plugin(
+        TEST_USER, PluginToggle(plugin_id="wikipedia", enabled=True)
+    )
     print(f"  Wikipedia enabled: {result}")
 
     if not result:
@@ -84,9 +87,13 @@ async def test_wikipedia_mcp():
 
     # Get tools
     tools = await registry.get_tools(TEST_USER)
-    wiki_tools = [t for t in tools if "wiki" in getattr(t, "name", "").lower()
-                  or "search" in getattr(t, "name", "").lower()
-                  or "article" in getattr(t, "name", "").lower()]
+    wiki_tools = [
+        t
+        for t in tools
+        if "wiki" in getattr(t, "name", "").lower()
+        or "search" in getattr(t, "name", "").lower()
+        or "article" in getattr(t, "name", "").lower()
+    ]
 
     print(f"  Total tools from all enabled plugins: {len(tools)}")
     print(f"  Wikipedia-related tools: {len(wiki_tools)}")
@@ -113,9 +120,9 @@ async def test_e2b_sandbox():
     print("TEST 3: E2B Sandbox — Code Execution")
     print("=" * 60)
 
-    from app.services.plugin_registry import get_plugin_registry
-    from app.services.e2b_service import get_e2b_service
     from app.config import get_settings
+    from app.services.e2b_service import get_e2b_service
+    from app.services.plugin_registry import get_plugin_registry
 
     settings = get_settings()
     if not settings.E2B_API_KEY:
@@ -126,6 +133,7 @@ async def test_e2b_sandbox():
 
     # Enable E2B
     from app.models.plugin import PluginToggle
+
     await registry.toggle_plugin(TEST_USER, PluginToggle(plugin_id="e2b-sandbox", enabled=True))
 
     svc = get_e2b_service()
@@ -203,6 +211,7 @@ async def test_native_plugin():
 
     # Enable courier
     from app.models.plugin import PluginToggle
+
     result = await registry.toggle_plugin(
         TEST_USER,
         PluginToggle(plugin_id="courier", enabled=True),
@@ -212,7 +221,12 @@ async def test_native_plugin():
 
     # Get tools
     tools = await registry.get_tools(TEST_USER)
-    notif_tools = [t for t in tools if "notification" in getattr(t, "name", "").lower() or "email" in getattr(t, "name", "").lower()]
+    notif_tools = [
+        t
+        for t in tools
+        if "notification" in getattr(t, "name", "").lower()
+        or "email" in getattr(t, "name", "").lower()
+    ]
     print(f"  Courier tools: {len(notif_tools)}")
     for t in notif_tools:
         print(f"    {t.name}")
@@ -242,6 +256,7 @@ async def test_lazy_loading():
 
     # Enable courier (has pre-declared summaries)
     from app.models.plugin import PluginToggle
+
     await registry.toggle_plugin(
         TEST_USER,
         PluginToggle(plugin_id="courier", enabled=True),
@@ -331,6 +346,7 @@ async def main():
 
     # Cleanup
     from app.services.plugin_registry import get_plugin_registry
+
     registry = get_plugin_registry()
     await registry.disconnect_all(TEST_USER)
 

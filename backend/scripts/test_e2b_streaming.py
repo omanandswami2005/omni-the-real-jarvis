@@ -50,11 +50,16 @@ def _c(code: str, text: str) -> str:
     return f"{code}{text}\033[0m" if USE_COLOR else text
 
 
-PASS = lambda t: _c("\033[32m", t)
-FAIL = lambda t: _c("\033[31m", t)
-INFO = lambda t: _c("\033[36m", t)
-BOLD = lambda t: _c("\033[1m", t)
-DIM = lambda t: _c("\033[90m", t)
+def PASS(t):
+    return _c("\033[32m", t)
+def FAIL(t):
+    return _c("\033[31m", t)
+def INFO(t):
+    return _c("\033[36m", t)
+def BOLD(t):
+    return _c("\033[1m", t)
+def DIM(t):
+    return _c("\033[90m", t)
 
 # ── Firebase Auth ─────────────────────────────────────────────────────
 
@@ -129,10 +134,16 @@ def run_tests(backend: str) -> dict[str, dict]:
         stream_url = start_data.get("stream_url")
         status = start_data.get("status")
 
-        ok = resp.status_code == 200 and sandbox_id and stream_url and status in (
-            "ready",
-            "streaming",
-            "creating",
+        ok = (
+            resp.status_code == 200
+            and sandbox_id
+            and stream_url
+            and status
+            in (
+                "ready",
+                "streaming",
+                "creating",
+            )
         )
         results["start"] = {"pass": ok, "data": start_data, "elapsed": elapsed}
 
@@ -140,7 +151,11 @@ def run_tests(backend: str) -> dict[str, dict]:
             print(f"  {PASS('✓')} Desktop started")
             print(f"     Sandbox : {sandbox_id}")
             print(f"     Status  : {status}")
-            print(f"     Stream  : {stream_url[:80]}…" if len(stream_url) > 80 else f"     Stream  : {stream_url}")
+            print(
+                f"     Stream  : {stream_url[:80]}…"
+                if len(stream_url) > 80
+                else f"     Stream  : {stream_url}"
+            )
         else:
             print(f"  {FAIL('✗')} Unexpected start response")
     except Exception as exc:
@@ -193,7 +208,9 @@ def run_tests(backend: str) -> dict[str, dict]:
                 f"Content-Type: {stream_resp.headers.get('content-type', 'n/a')}, "
                 f"Size: {len(stream_resp.content)} bytes"
             )
-            print(f"  {PASS('✓') if ok else FAIL('✗')} Stream URL {'accessible' if ok else 'unreachable'}")
+            print(
+                f"  {PASS('✓') if ok else FAIL('✗')} Stream URL {'accessible' if ok else 'unreachable'}"
+            )
         except Exception as exc:
             print(f"  {FAIL('✗')} Stream URL check failed: {exc}")
             results["stream_url"] = {"pass": False, "error": str(exc)}

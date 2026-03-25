@@ -27,20 +27,26 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 _pending_screenshots: dict[str, list[dict]] = {}
 
-SCREENSHOT_TOOL_NAMES = frozenset({
-    "desktop_screenshot",
-    "desktop_exec_and_show",
-    "desktop_multi_step",
-})
+SCREENSHOT_TOOL_NAMES = frozenset(
+    {
+        "desktop_screenshot",
+        "desktop_exec_and_show",
+        "desktop_multi_step",
+    }
+)
 
 
-def _queue_screenshot(user_id: str, b64: str, mime_type: str = "image/png", description: str = "") -> None:
-    _pending_screenshots.setdefault(user_id, []).append({
-        "tool_name": "desktop_screenshot",
-        "image_base64": b64,
-        "mime_type": mime_type,
-        "description": description,
-    })
+def _queue_screenshot(
+    user_id: str, b64: str, mime_type: str = "image/png", description: str = ""
+) -> None:
+    _pending_screenshots.setdefault(user_id, []).append(
+        {
+            "tool_name": "desktop_screenshot",
+            "image_base64": b64,
+            "mime_type": mime_type,
+            "description": description,
+        }
+    )
 
 
 def drain_pending_screenshots(user_id: str) -> list[dict]:
@@ -102,7 +108,12 @@ async def _stream_loop(user_id: str, fps: float = 1.0) -> None:
                 consecutive_errors = 0
             except Exception:
                 consecutive_errors += 1
-                logger.warning("e2b_stream_frame_error", user_id=user_id, errors=consecutive_errors, exc_info=True)
+                logger.warning(
+                    "e2b_stream_frame_error",
+                    user_id=user_id,
+                    errors=consecutive_errors,
+                    exc_info=True,
+                )
                 if consecutive_errors >= max_consecutive_errors:
                     logger.error("e2b_stream_too_many_errors", user_id=user_id)
                     break
@@ -153,7 +164,10 @@ async def stop_desktop(user_id: str = "default") -> dict:
     _stop_streaming(user_id)
     svc = get_e2b_desktop_service()
     destroyed = await svc.destroy_desktop(user_id)
-    return {"destroyed": destroyed, "message": "Desktop sandbox destroyed." if destroyed else "No active desktop."}
+    return {
+        "destroyed": destroyed,
+        "message": "Desktop sandbox destroyed." if destroyed else "No active desktop.",
+    }
 
 
 async def desktop_status(user_id: str = "default") -> dict:
@@ -282,7 +296,9 @@ async def desktop_click(x: int, y: int, button: str = "left", user_id: str = "de
     return {"clicked": True, "x": x, "y": y, "button": button}
 
 
-async def desktop_scroll(x: int, y: int, direction: str = "down", amount: int = 3, user_id: str = "default") -> dict:
+async def desktop_scroll(
+    x: int, y: int, direction: str = "down", amount: int = 3, user_id: str = "default"
+) -> dict:
     """Scroll the mouse wheel at a position.
 
     Args:
@@ -300,7 +316,9 @@ async def desktop_scroll(x: int, y: int, direction: str = "down", amount: int = 
     return {"scrolled": True, "direction": direction, "amount": amount}
 
 
-async def desktop_drag(start_x: int, start_y: int, end_x: int, end_y: int, user_id: str = "default") -> dict:
+async def desktop_drag(
+    start_x: int, start_y: int, end_x: int, end_y: int, user_id: str = "default"
+) -> dict:
     """Drag from one position to another on the desktop.
 
     Args:
@@ -505,7 +523,9 @@ async def desktop_find_file(
     # Gather sizes for found files
     files = []
     if paths:
-        stat_cmd = "stat --format='%n %s' " + " ".join(f"'{p}'" for p in paths[:50]) + " 2>/dev/null"
+        stat_cmd = (
+            "stat --format='%n %s' " + " ".join(f"'{p}'" for p in paths[:50]) + " 2>/dev/null"
+        )
         stat_result = await svc.run_command(user_id, stat_cmd)
         for line in stat_result.get("stdout", "").splitlines():
             line = line.strip()
@@ -658,7 +678,11 @@ async def desktop_list_files(
         cmd = f"find {directory} -maxdepth 1 -name '{pattern}' -exec ls -la {{}} \\;"
     result = await svc.run_command(user_id, cmd)
     stdout = result.get("stdout", "")
-    lines = [line.strip() for line in stdout.strip().splitlines() if line.strip() and not line.startswith("total")]
+    lines = [
+        line.strip()
+        for line in stdout.strip().splitlines()
+        if line.strip() and not line.startswith("total")
+    ]
     return {
         "directory": directory,
         "pattern": pattern or "*",
@@ -687,13 +711,15 @@ async def desktop_multi_step(
     results = []
     for i, cmd in enumerate(steps):
         r = await svc.run_command(user_id, cmd)
-        results.append({
-            "step": i + 1,
-            "command": cmd,
-            "stdout": r.get("stdout", ""),
-            "stderr": r.get("stderr", ""),
-            "exit_code": r.get("exit_code", -1),
-        })
+        results.append(
+            {
+                "step": i + 1,
+                "command": cmd,
+                "stdout": r.get("stdout", ""),
+                "stderr": r.get("stderr", ""),
+                "exit_code": r.get("exit_code", -1),
+            }
+        )
         if r.get("exit_code", -1) != 0:
             break  # Stop on failure
 
@@ -722,7 +748,10 @@ async def desktop_clipboard_read(user_id: str = "default") -> dict:
         Dict with clipboard text content.
     """
     svc = get_e2b_desktop_service()
-    result = await svc.run_command(user_id, "xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null || echo ''")
+    result = await svc.run_command(
+        user_id,
+        "xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null || echo ''",
+    )
     return {"clipboard": result.get("stdout", "").strip()}
 
 
@@ -739,7 +768,10 @@ async def desktop_clipboard_write(text: str, user_id: str = "default") -> dict:
     svc = get_e2b_desktop_service()
     # Use printf to safely handle special characters
     safe_text = text.replace("\\", "\\\\").replace("'", "'\\''")
-    await svc.run_command(user_id, f"printf '%s' '{safe_text}' | xclip -selection clipboard 2>/dev/null || printf '%s' '{safe_text}' | xsel --clipboard --input 2>/dev/null")
+    await svc.run_command(
+        user_id,
+        f"printf '%s' '{safe_text}' | xclip -selection clipboard 2>/dev/null || printf '%s' '{safe_text}' | xsel --clipboard --input 2>/dev/null",
+    )
     return {"copied": True, "length": len(text)}
 
 
@@ -788,7 +820,9 @@ async def desktop_get_screen_info(user_id: str = "default") -> dict:
         Screen resolution and display information.
     """
     svc = get_e2b_desktop_service()
-    result = await svc.run_command(user_id, "xdpyinfo 2>/dev/null | grep dimensions || echo 'unknown'")
+    result = await svc.run_command(
+        user_id, "xdpyinfo 2>/dev/null | grep dimensions || echo 'unknown'"
+    )
     stdout = result.get("stdout", "").strip()
     return {"screen_info": stdout}
 

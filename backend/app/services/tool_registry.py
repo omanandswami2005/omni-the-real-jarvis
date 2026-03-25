@@ -129,7 +129,9 @@ def _create_proxy_tool(tool_def: dict, user_id: str, client_type: ClientType) ->
             }
             annotations[param_name] = type_map.get(ptype, str)
             sig_params.append(
-                inspect.Parameter(param_name, inspect.Parameter.KEYWORD_ONLY, annotation=annotations[param_name])
+                inspect.Parameter(
+                    param_name, inspect.Parameter.KEYWORD_ONLY, annotation=annotations[param_name]
+                )
             )
         annotations["return"] = dict
         proxy_fn.__annotations__ = annotations
@@ -180,12 +182,12 @@ class ToolRegistry:
                 tools = await plugin_registry._get_plugin_tools(user_id, pid, m)
                 return (pid, tools or [])
             except Exception:
-                logger.warning("t2_tools_load_failed", user_id=user_id, plugin_id=pid, exc_info=True)
+                logger.warning(
+                    "t2_tools_load_failed", user_id=user_id, plugin_id=pid, exc_info=True
+                )
                 return (pid, [])
 
-        results = await asyncio.gather(
-            *(_load(pid, m) for pid, m in enabled_manifests)
-        )
+        results = await asyncio.gather(*(_load(pid, m) for pid, m in enabled_manifests))
         plugin_tools: dict[str, list] = {pid: tools for pid, tools in results if tools}
 
         # ── Distribute T2 tools to personas by tag matching ───────────

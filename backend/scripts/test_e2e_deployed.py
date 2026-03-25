@@ -2,6 +2,7 @@
 
 Usage:  python scripts/test_e2e_deployed.py [BASE_URL]
 """
+
 import asyncio
 import sys
 
@@ -45,7 +46,9 @@ async def main():
         if r.status_code in (401, 403):
             ok("GET /api/v1/clients — no redirect", f"got {r.status_code} (auth required, no 307)")
         elif r.status_code == 307:
-            fail("GET /api/v1/clients — STILL REDIRECTING", f"Location: {r.headers.get('location')}")
+            fail(
+                "GET /api/v1/clients — STILL REDIRECTING", f"Location: {r.headers.get('location')}"
+            )
         else:
             ok("GET /api/v1/clients — no redirect", f"got {r.status_code}")
 
@@ -54,7 +57,9 @@ async def main():
         if r.status_code in (401, 403):
             ok("GET /api/v1/personas — no redirect", f"got {r.status_code}")
         elif r.status_code == 307:
-            fail("GET /api/v1/personas — STILL REDIRECTING", f"Location: {r.headers.get('location')}")
+            fail(
+                "GET /api/v1/personas — STILL REDIRECTING", f"Location: {r.headers.get('location')}"
+            )
         else:
             ok("GET /api/v1/personas — no redirect", f"got {r.status_code}")
 
@@ -63,7 +68,9 @@ async def main():
         if r.status_code in (401, 403):
             ok("GET /api/v1/sessions — no redirect", f"got {r.status_code}")
         elif r.status_code == 307:
-            fail("GET /api/v1/sessions — STILL REDIRECTING", f"Location: {r.headers.get('location')}")
+            fail(
+                "GET /api/v1/sessions — STILL REDIRECTING", f"Location: {r.headers.get('location')}"
+            )
         else:
             ok("GET /api/v1/sessions — no redirect", f"got {r.status_code}")
 
@@ -72,7 +79,9 @@ async def main():
         if r.status_code in (401, 403):
             ok("GET /api/v1/gallery — no redirect", f"got {r.status_code}")
         elif r.status_code == 307:
-            fail("GET /api/v1/gallery — STILL REDIRECTING", f"Location: {r.headers.get('location')}")
+            fail(
+                "GET /api/v1/gallery — STILL REDIRECTING", f"Location: {r.headers.get('location')}"
+            )
         else:
             ok("GET /api/v1/gallery — no redirect", f"got {r.status_code}")
 
@@ -99,10 +108,13 @@ async def main():
             try:
                 msg = await asyncio.wait_for(ws.recv(), timeout=5)
                 ok("WebSocket /ws/live — connected and received response", f"msg={str(msg)[:80]}")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 ok("WebSocket /ws/live — connected (no response within 5s, expected without auth)")
             except websockets.exceptions.ConnectionClosed as e:
-                ok("WebSocket /ws/live — server closed connection", f"code={e.code} reason={e.reason[:60] if e.reason else ''}")
+                ok(
+                    "WebSocket /ws/live — server closed connection",
+                    f"code={e.code} reason={e.reason[:60] if e.reason else ''}",
+                )
     except websockets.exceptions.InvalidStatusCode as e:
         if e.status_code in (403, 401):
             ok("WebSocket /ws/live — server rejected unauthenticated", f"status={e.status_code}")
@@ -118,7 +130,7 @@ async def main():
             try:
                 msg = await asyncio.wait_for(ws.recv(), timeout=5)
                 ok("WebSocket /ws/events — connected", f"msg={str(msg)[:80]}")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 ok("WebSocket /ws/events — connected (waiting for auth)")
             except websockets.exceptions.ConnectionClosed as e:
                 ok("WebSocket /ws/events — server closed", f"code={e.code}")
@@ -147,8 +159,8 @@ async def main():
         else:
             fail("CORS — no ACAO header in preflight response")
 
-    print(f"\n{'='*50}")
-    print(f"Results: {passed} passed, {failed} failed out of {passed+failed}")
+    print(f"\n{'=' * 50}")
+    print(f"Results: {passed} passed, {failed} failed out of {passed + failed}")
     if failed:
         print("SOME TESTS FAILED!")
         sys.exit(1)

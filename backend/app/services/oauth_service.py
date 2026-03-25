@@ -12,6 +12,7 @@ Scalable across all MCP servers that follow the spec (Notion, Slack, etc.).
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import secrets
@@ -523,10 +524,8 @@ class OAuthService:
             if resp.status_code != 200:
                 # Parse error type from response body
                 error_code = ""
-                try:
+                with contextlib.suppress(Exception):
                     error_code = resp.json().get("error", "")
-                except Exception:
-                    pass
                 logger.warning(
                     "oauth_refresh_failed",
                     status=resp.status_code,
@@ -545,10 +544,8 @@ class OAuthService:
                         user_id=user_id,
                         plugin_id=plugin_id,
                     )
-                    try:
+                    with contextlib.suppress(Exception):
                         secret_service.delete_secrets(user_id, f"{plugin_id}-mcp-oauth")
-                    except Exception:
-                        pass
                 return None
             data = resp.json()
 

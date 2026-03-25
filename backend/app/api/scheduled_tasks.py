@@ -102,23 +102,25 @@ async def get_execution_history(
         raise HTTPException(status_code=404, detail="Scheduled task not found")
 
     # Read from executions subcollection
-    coll_ref = (
-        svc.db.collection("scheduled_tasks")
-        .document(task_id)
-        .collection("executions")
+    coll_ref = svc.db.collection("scheduled_tasks").document(task_id).collection("executions")
+    docs = (
+        coll_ref.order_by("executed_at", direction=gc_firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
     )
-    docs = coll_ref.order_by("executed_at", direction=gc_firestore.Query.DESCENDING).limit(limit).stream()
     executions = []
     for doc in docs:
         d = doc.to_dict()
-        executions.append({
-            "id": doc.id,
-            "status": "success" if d.get("success") else "failed",
-            "result": d.get("output", ""),
-            "error": d.get("output", "") if not d.get("success") else None,
-            "started_at": d["executed_at"].isoformat() if d.get("executed_at") else None,
-            "run_count": d.get("run_count"),
-        })
+        executions.append(
+            {
+                "id": doc.id,
+                "status": "success" if d.get("success") else "failed",
+                "result": d.get("output", ""),
+                "error": d.get("output", "") if not d.get("success") else None,
+                "started_at": d["executed_at"].isoformat() if d.get("executed_at") else None,
+                "run_count": d.get("run_count"),
+            }
+        )
     return {"executions": executions}
 
 

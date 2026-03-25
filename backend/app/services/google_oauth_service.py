@@ -172,8 +172,13 @@ class GoogleOAuthService:
 
         # Refresh if expired
         if tokens.expires_at < time.monotonic() and tokens.refresh_token:
-            logger.info("google_oauth_refreshing", user_id=user_id, plugin_id=plugin_id,
-                        has_client_id=bool(self._client_id()), has_client_secret=bool(self._client_secret()))
+            logger.info(
+                "google_oauth_refreshing",
+                user_id=user_id,
+                plugin_id=plugin_id,
+                has_client_id=bool(self._client_id()),
+                has_client_secret=bool(self._client_secret()),
+            )
             refreshed = await self._refresh(tokens.refresh_token)
             if refreshed:
                 tokens.access_token = refreshed.access_token
@@ -182,7 +187,9 @@ class GoogleOAuthService:
                     tokens.refresh_token = refreshed.refresh_token
                 logger.info("google_oauth_refreshed_ok", user_id=user_id, plugin_id=plugin_id)
             else:
-                logger.warning("google_oauth_refresh_returned_none", user_id=user_id, plugin_id=plugin_id)
+                logger.warning(
+                    "google_oauth_refresh_returned_none", user_id=user_id, plugin_id=plugin_id
+                )
                 return None
 
         return tokens.access_token
@@ -228,8 +235,11 @@ class GoogleOAuthService:
             cid = self._client_id()
             csecret = self._client_secret()
             if not cid or not csecret:
-                logger.warning("google_oauth_refresh_missing_creds",
-                               has_client_id=bool(cid), has_client_secret=bool(csecret))
+                logger.warning(
+                    "google_oauth_refresh_missing_creds",
+                    has_client_id=bool(cid),
+                    has_client_secret=bool(csecret),
+                )
                 return None
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.post(
@@ -242,8 +252,11 @@ class GoogleOAuthService:
                     },
                 )
                 if resp.status_code != 200:
-                    logger.warning("google_oauth_refresh_http_error",
-                                   status=resp.status_code, body=resp.text[:200])
+                    logger.warning(
+                        "google_oauth_refresh_http_error",
+                        status=resp.status_code,
+                        body=resp.text[:200],
+                    )
                 resp.raise_for_status()
                 data = resp.json()
             return GoogleTokens(

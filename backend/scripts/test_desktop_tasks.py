@@ -34,6 +34,7 @@ _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file, override=False)
     except ImportError:
         for _line in _env_file.read_text().splitlines():
@@ -51,21 +52,46 @@ _default_ws = BACKEND_URL.replace("http://", "ws://").replace("https://", "wss:/
 WS_URL = os.getenv("WS_LIVE_URL", _default_ws)
 
 USE_COLOR = sys.stdout.isatty()
+
+
 def _c(code: str, text: str) -> str:
     return f"{code}{text}\033[0m" if USE_COLOR else text
-def green(t: str) -> str:  return _c("\033[92m", t)
-def red(t: str) -> str:    return _c("\033[91m", t)
-def yellow(t: str) -> str: return _c("\033[93m", t)
-def cyan(t: str) -> str:   return _c("\033[96m", t)
-def blue(t: str) -> str:   return _c("\033[94m", t)
-def bold(t: str) -> str:   return _c("\033[1m", t)
-def dim(t: str) -> str:    return _c("\033[2m", t)
+
+
+def green(t: str) -> str:
+    return _c("\033[92m", t)
+
+
+def red(t: str) -> str:
+    return _c("\033[91m", t)
+
+
+def yellow(t: str) -> str:
+    return _c("\033[93m", t)
+
+
+def cyan(t: str) -> str:
+    return _c("\033[96m", t)
+
+
+def blue(t: str) -> str:
+    return _c("\033[94m", t)
+
+
+def bold(t: str) -> str:
+    return _c("\033[1m", t)
+
+
+def dim(t: str) -> str:
+    return _c("\033[2m", t)
 
 
 # ── Firebase Auth ─────────────────────────────────────────────────────
 
+
 async def get_firebase_token() -> str:
     import httpx
+
     print(f"  Signing in as {bold(EMAIL)} ...")
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
@@ -83,6 +109,7 @@ async def get_firebase_token() -> str:
 
 
 # ── Message collector ─────────────────────────────────────────────────
+
 
 async def collect_messages(ws, timeout: float = 90.0) -> list[dict]:
     """Receive messages until idle + response, or timeout."""
@@ -181,8 +208,14 @@ def print_messages(messages: list[dict], indent: str = "    ") -> None:
                 print(f"{indent}{dim('[status]')} {color(state)} {dim(detail)}")
             else:
                 print(f"{indent}{dim('[status]')} {color(state)}")
-        elif t in ("auth_response", "connected", "_binary_audio",
-                    "session_suggestion", "client_status_update", "mic_floor"):
+        elif t in (
+            "auth_response",
+            "connected",
+            "_binary_audio",
+            "session_suggestion",
+            "client_status_update",
+            "mic_floor",
+        ):
             pass
         elif t == "error":
             print(f"{indent}{red('[error]')} {msg.get('code', '')}: {msg.get('description', '')}")
@@ -191,6 +224,7 @@ def print_messages(messages: list[dict], indent: str = "    ") -> None:
 
 
 # ── Auth helper ───────────────────────────────────────────────────────
+
 
 async def ws_auth(ws, token: str) -> dict | None:
     """Auth as web client and return auth_response."""
@@ -216,13 +250,13 @@ async def ws_auth(ws, token: str) -> dict | None:
             continue
         if msg.get("type") == "auth_response":
             auth_resp = msg
-        elif msg.get("type") == "connected":
-            if auth_resp:
-                break
+        elif msg.get("type") == "connected" and auth_resp:
+            break
     return auth_resp
 
 
 # ── Test functions ────────────────────────────────────────────────────
+
 
 async def test_file_creation(ws, results: dict) -> None:
     """Test 1: Create a file on the desktop using write_file tool."""
@@ -245,11 +279,11 @@ async def test_file_creation(ws, results: dict) -> None:
 
     # Check results
     used_write = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "write_file"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "write_file" for m in messages
     )
     write_ok = any(
-        m.get("type") == "tool_response" and m.get("tool_name") == "write_file"
+        m.get("type") == "tool_response"
+        and m.get("tool_name") == "write_file"
         and "ok" in str(m.get("result", "")).lower()
         for m in messages
     )
@@ -291,12 +325,10 @@ async def test_open_app(ws, results: dict) -> None:
     print_messages(messages)
 
     used_open_app = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "open_app"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "open_app" for m in messages
     )
     used_execute = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "execute_command"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "execute_command" for m in messages
     )
     open_ok = any(
         m.get("type") == "tool_response"
@@ -347,16 +379,13 @@ async def test_play_video(ws, results: dict) -> None:
     print_messages(messages)
 
     used_list_dir = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "list_directory"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "list_directory" for m in messages
     )
     used_execute = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "execute_command"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "execute_command" for m in messages
     )
     used_open_app = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "open_app"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "open_app" for m in messages
     )
     used_any_tool = used_list_dir or used_execute or used_open_app
     has_response = any(
@@ -367,9 +396,12 @@ async def test_play_video(ws, results: dict) -> None:
 
     if used_any_tool:
         tools_used = []
-        if used_list_dir: tools_used.append("list_directory")
-        if used_execute: tools_used.append("execute_command")
-        if used_open_app: tools_used.append("open_app")
+        if used_list_dir:
+            tools_used.append("list_directory")
+        if used_execute:
+            tools_used.append("execute_command")
+        if used_open_app:
+            tools_used.append("open_app")
         print(green(f"\n  ✓ PASS ({elapsed:.1f}s) — tools used: {', '.join(tools_used)}"))
         results["video"] = (True, f"tools: {', '.join(tools_used)}")
     elif has_response:
@@ -400,16 +432,13 @@ async def test_open_photos_folder(ws, results: dict) -> None:
     print_messages(messages)
 
     used_list_dir = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "list_directory"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "list_directory" for m in messages
     )
     used_execute = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "execute_command"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "execute_command" for m in messages
     )
     used_open_app = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "open_app"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "open_app" for m in messages
     )
     used_any_tool = used_list_dir or used_execute or used_open_app
     has_response = any(
@@ -420,9 +449,12 @@ async def test_open_photos_folder(ws, results: dict) -> None:
 
     if used_any_tool:
         tools_used = []
-        if used_list_dir: tools_used.append("list_directory")
-        if used_execute: tools_used.append("execute_command")
-        if used_open_app: tools_used.append("open_app")
+        if used_list_dir:
+            tools_used.append("list_directory")
+        if used_execute:
+            tools_used.append("execute_command")
+        if used_open_app:
+            tools_used.append("open_app")
         print(green(f"\n  ✓ PASS ({elapsed:.1f}s) — tools used: {', '.join(tools_used)}"))
         results["photos"] = (True, f"tools: {', '.join(tools_used)}")
     elif has_response:
@@ -452,16 +484,13 @@ async def test_open_folder(ws, results: dict) -> None:
     print_messages(messages)
 
     used_execute = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "execute_command"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "execute_command" for m in messages
     )
     used_open_app = any(
-        m.get("type") == "tool_call" and m.get("tool_name") == "open_app"
-        for m in messages
+        m.get("type") == "tool_call" and m.get("tool_name") == "open_app" for m in messages
     )
     execute_ok = any(
-        m.get("type") == "tool_response"
-        and m.get("tool_name") in ("execute_command", "open_app")
+        m.get("type") == "tool_response" and m.get("tool_name") in ("execute_command", "open_app")
         for m in messages
     )
     has_response = any(
@@ -487,15 +516,16 @@ async def test_open_folder(ws, results: dict) -> None:
 # ── Test definitions ──────────────────────────────────────────────────
 
 TESTS = [
-    {"id": "file",     "name": "File Creation (write_file)",          "fn": "test_file_creation"},
-    {"id": "open_app", "name": "Application Opening (open_app)",      "fn": "test_open_app"},
-    {"id": "video",    "name": "Video Playback (browse + open)",      "fn": "test_play_video"},
-    {"id": "photos",   "name": "Photos Folder (list + open)",         "fn": "test_open_photos_folder"},
-    {"id": "folder",   "name": "Open Downloads Folder",               "fn": "test_open_folder"},
+    {"id": "file", "name": "File Creation (write_file)", "fn": "test_file_creation"},
+    {"id": "open_app", "name": "Application Opening (open_app)", "fn": "test_open_app"},
+    {"id": "video", "name": "Video Playback (browse + open)", "fn": "test_play_video"},
+    {"id": "photos", "name": "Photos Folder (list + open)", "fn": "test_open_photos_folder"},
+    {"id": "folder", "name": "Open Downloads Folder", "fn": "test_open_folder"},
 ]
 
 
 # ── Main runner ───────────────────────────────────────────────────────
+
 
 async def run_tests(only: list[str] | None, backend_url: str | None) -> None:
     global BACKEND_URL, WS_URL
@@ -551,7 +581,11 @@ async def run_tests(only: list[str] | None, backend_url: str | None) -> None:
                 break
             except OSError as e:
                 if _attempt < 3:
-                    print(yellow(f"  DNS/network error (attempt {_attempt}/3): {e} — retrying in 3s …"))
+                    print(
+                        yellow(
+                            f"  DNS/network error (attempt {_attempt}/3): {e} — retrying in 3s …"
+                        )
+                    )
                     await asyncio.sleep(3)
                 else:
                     raise
@@ -565,7 +599,9 @@ async def run_tests(only: list[str] | None, backend_url: str | None) -> None:
             session = auth_resp.get("session_id", "?")
             tools = auth_resp.get("available_tools", [])
             print(green(f"  Connected: session={session[:20]}..."))
-            print(f"  Available tools: {len(tools)} ({', '.join(sorted(tools)[:12])}{'...' if len(tools) > 12 else ''})")
+            print(
+                f"  Available tools: {len(tools)} ({', '.join(sorted(tools)[:12])}{'...' if len(tools) > 12 else ''})"
+            )
 
             await drain(ws, timeout=2.0)
             await asyncio.sleep(2)
@@ -582,6 +618,7 @@ async def run_tests(only: list[str] | None, backend_url: str | None) -> None:
     except Exception as exc:
         print(red(f"\n  Unexpected error: {type(exc).__name__}: {exc}"))
         import traceback
+
         traceback.print_exc()
 
     # ── Summary ──────────────────────────────────────────────────

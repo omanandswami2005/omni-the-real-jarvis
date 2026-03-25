@@ -23,6 +23,7 @@ _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file, override=False)
     except ImportError:
         for _line in _env_file.read_text().splitlines():
@@ -56,12 +57,17 @@ def fail(name: str, detail: str = "") -> None:
 
 async def get_token() -> str | None:
     if not FIREBASE_API_KEY or not EMAIL or not PASSWORD:
-        print("  ⚠  Firebase creds not set (FIREBASE_WEB_API_KEY, TEST_USER_EMAIL, TEST_USER_PASSWORD)")
+        print(
+            "  ⚠  Firebase creds not set (FIREBASE_WEB_API_KEY, TEST_USER_EMAIL, TEST_USER_PASSWORD)"
+        )
         return None
     import httpx
+
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(url, json={"email": EMAIL, "password": PASSWORD, "returnSecureToken": True})
+        resp = await client.post(
+            url, json={"email": EMAIL, "password": PASSWORD, "returnSecureToken": True}
+        )
     if resp.status_code != 200:
         print(f"  ⚠  Firebase sign-in failed: {resp.json().get('error', {}).get('message', '?')}")
         return None
@@ -79,13 +85,14 @@ def test_config_backend_url() -> None:
 
     # Force re-import
     import importlib
+
     if "app.config" in sys.modules:
         mod = importlib.reload(sys.modules["app.config"])
     else:
         mod = importlib.import_module("app.config")
 
     settings = mod.Settings()
-    if settings.BACKEND_URL == test_url:
+    if test_url == settings.BACKEND_URL:
         ok("Settings.BACKEND_URL reads from env", f"value={settings.BACKEND_URL}")
     else:
         fail("Settings.BACKEND_URL", f"expected {test_url}, got {settings.BACKEND_URL}")
@@ -115,6 +122,7 @@ def test_google_oauth_client_id_validation() -> None:
     os.environ.pop("GOOGLE_OAUTH_CLIENT_SECRET", None)
 
     from app.services.google_oauth_service import GoogleOAuthService
+
     svc = GoogleOAuthService()
 
     try:
@@ -134,6 +142,7 @@ async def test_wikipedia_lazy_load() -> None:
     print("\n[Test 3] Wikipedia NATIVE plugin lazy-loads tools from empty cache")
 
     from app.services.plugin_registry import PluginRegistry
+
     registry = PluginRegistry()
 
     # Wikipedia should be in catalog
@@ -175,6 +184,7 @@ async def test_plugin_catalog_api() -> None:
         return
 
     import httpx
+
     headers = {"Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(f"{BACKEND_URL}/api/v1/plugins/catalog", headers=headers)
@@ -187,13 +197,13 @@ async def test_plugin_catalog_api() -> None:
     catalog = resp.json()
     wiki = next((p for p in catalog if p.get("id") == "wikipedia"), None)
     if wiki:
-        ok(f"Wikipedia in catalog", f"state={wiki.get('state')}")
+        ok("Wikipedia in catalog", f"state={wiki.get('state')}")
     else:
         fail("Wikipedia not found in catalog")
 
     gcal = next((p for p in catalog if "calendar" in p.get("id", "").lower()), None)
     if gcal:
-        ok(f"Google Calendar in catalog", f"id={gcal['id']}, state={gcal.get('state')}")
+        ok("Google Calendar in catalog", f"id={gcal['id']}, state={gcal.get('state')}")
     else:
         print("  ℹ  Google Calendar not in catalog (expected if not configured)")
 
@@ -208,6 +218,7 @@ async def test_wikipedia_ws_tools() -> None:
         return
 
     import httpx
+
     headers = {"Authorization": f"Bearer {token}"}
 
     # Enable Wikipedia plugin
@@ -226,6 +237,7 @@ async def test_wikipedia_ws_tools() -> None:
     # Connect WS and check if tools are available
     ws_url = BACKEND_URL.replace("http://", "ws://").replace("https://", "wss://") + "/ws/chat"
     import websockets
+
     try:
         async with websockets.connect(ws_url, max_size=10 * 1024 * 1024, open_timeout=15) as ws:
             auth_msg = {
@@ -247,15 +259,22 @@ async def test_wikipedia_ws_tools() -> None:
             tools = auth_resp.get("available_tools", [])
             wiki_tools = [t for t in tools if "wikipedia" in t.lower()]
             if wiki_tools:
-                ok(f"Wikipedia tools in available_tools", f"{wiki_tools}")
+                ok("Wikipedia tools in available_tools", f"{wiki_tools}")
             else:
-                fail(f"No Wikipedia tools in available_tools", f"got {len(tools)} tools: {tools[:10]}")
+                fail(
+                    "No Wikipedia tools in available_tools",
+                    f"got {len(tools)} tools: {tools[:10]}",
+                )
 
             # Send a Wikipedia search prompt
-            await ws.send(json.dumps({
-                "type": "text",
-                "content": "Search Wikipedia for 'quantum computing' and give me a brief summary."
-            }))
+            await ws.send(
+                json.dumps(
+                    {
+                        "type": "text",
+                        "content": "Search Wikipedia for 'quantum computing' and give me a brief summary.",
+                    }
+                )
+            )
 
             # Collect responses for up to 60 seconds
             deadline = time.monotonic() + 60
@@ -273,7 +292,10 @@ async def test_wikipedia_ws_tools() -> None:
                     continue
                 msg = json.loads(raw)
                 messages.append(msg)
-                if msg.get("type") == "tool_call" and "wikipedia" in msg.get("tool_name", "").lower():
+                if (
+                    msg.get("type") == "tool_call"
+                    and "wikipedia" in msg.get("tool_name", "").lower()
+                ):
                     saw_wiki_tool = True
                 if msg.get("type") == "response" and msg.get("data"):
                     saw_response = True
@@ -283,7 +305,7 @@ async def test_wikipedia_ws_tools() -> None:
             if saw_wiki_tool:
                 ok("Agent used a Wikipedia tool")
             else:
-                print(f"  ℹ  Agent may have used built-in knowledge instead of Wikipedia tool")
+                print("  ℹ  Agent may have used built-in knowledge instead of Wikipedia tool")
 
             if saw_response:
                 ok("Agent responded to Wikipedia query")

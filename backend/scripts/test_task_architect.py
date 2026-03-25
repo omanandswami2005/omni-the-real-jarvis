@@ -32,15 +32,20 @@ from pathlib import Path
 
 # Ensure stdout/stderr use UTF-8 on Windows (needed for emoji/box chars)
 if hasattr(sys.stdout, "buffer"):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+    sys.stdout = io.TextIOWrapper(
+        sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True
+    )
 if hasattr(sys.stderr, "buffer"):
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+    sys.stderr = io.TextIOWrapper(
+        sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True
+    )
 
 # ── Load .env ────────────────────────────────────────────────────────────────
 _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file, override=False)
     except ImportError:
         for _line in _env_file.read_text().splitlines():
@@ -53,23 +58,50 @@ FIREBASE_API_KEY = os.environ["FIREBASE_WEB_API_KEY"]
 EMAIL = os.environ["TEST_USER_EMAIL"]
 PASSWORD = os.environ["TEST_USER_PASSWORD"]
 BACKEND_HTTP = os.getenv("BACKEND_URL", "http://localhost:8000")
-BACKEND_WS   = BACKEND_HTTP.replace("http://", "ws://").replace("https://", "wss://")
+BACKEND_WS = BACKEND_HTTP.replace("http://", "ws://").replace("https://", "wss://")
 
-CHAT_WS   = f"{BACKEND_WS}/ws/chat"
+CHAT_WS = f"{BACKEND_WS}/ws/chat"
 EVENTS_WS = f"{BACKEND_WS}/ws/events"
 
 # ── Colours ──────────────────────────────────────────────────────────────────
 USE_COLOR = sys.stdout.isatty()
 
-def _c(code: str, t: str) -> str: return f"{code}{t}\033[0m" if USE_COLOR else t
-def green(t):  return _c("\033[92m", t)
-def red(t):    return _c("\033[91m", t)
-def yellow(t): return _c("\033[93m", t)
-def cyan(t):   return _c("\033[96m", t)
-def blue(t):   return _c("\033[94m", t)
-def bold(t):   return _c("\033[1m",  t)
-def dim(t):    return _c("\033[2m",  t)
-def magenta(t):return _c("\033[95m", t)
+
+def _c(code: str, t: str) -> str:
+    return f"{code}{t}\033[0m" if USE_COLOR else t
+
+
+def green(t):
+    return _c("\033[92m", t)
+
+
+def red(t):
+    return _c("\033[91m", t)
+
+
+def yellow(t):
+    return _c("\033[93m", t)
+
+
+def cyan(t):
+    return _c("\033[96m", t)
+
+
+def blue(t):
+    return _c("\033[94m", t)
+
+
+def bold(t):
+    return _c("\033[1m", t)
+
+
+def dim(t):
+    return _c("\033[2m", t)
+
+
+def magenta(t):
+    return _c("\033[95m", t)
+
 
 # ── Complex task ─────────────────────────────────────────────────────────────
 COMPLEX_TASK = (
@@ -78,6 +110,7 @@ COMPLEX_TASK = (
     "2) Write a Python function that returns a list of those languages with their rank, "
     "3) Write a short creative poem about coding with those languages."
 )
+
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 async def firebase_sign_in() -> str:
@@ -90,27 +123,31 @@ async def firebase_sign_in() -> str:
     print(f"  Signing in as {bold(EMAIL)} ...")
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
     async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(url, json={
-            "email": EMAIL,
-            "password": PASSWORD,
-            "returnSecureToken": True,
-        })
+        resp = await client.post(
+            url,
+            json={
+                "email": EMAIL,
+                "password": PASSWORD,
+                "returnSecureToken": True,
+            },
+        )
     if resp.status_code != 200:
         err = resp.json().get("error", {}).get("message", "unknown")
         print(red(f"  Firebase sign-in failed: {err}"))
         sys.exit(1)
     token = resp.json()["idToken"]
-    print(green(f"  Auth OK") + dim(f"  ({token[:20]}...)"))
+    print(green("  Auth OK") + dim(f"  ({token[:20]}...)"))
     return token
 
 
 # ── Pipeline event listener ───────────────────────────────────────────────────
 STAGE_STATUS_ICON = {
-    "pending":   "⏳",
-    "running":   "🔄",
+    "pending": "⏳",
+    "running": "🔄",
     "completed": "✅",
-    "failed":    "❌",
+    "failed": "❌",
 }
+
 
 async def listen_events(token: str, all_done: asyncio.Event, pipeline_seen: asyncio.Event) -> None:
     """Connect to /ws/events and print pipeline events as they arrive."""
@@ -136,14 +173,14 @@ async def listen_events(token: str, all_done: asyncio.Event, pipeline_seen: asyn
             if auth_resp.get("status") != "ok":
                 print(red(f"  [events] Auth failed: {auth_resp}"))
                 return
-            print(green(f"  [events] Auth OK") + dim(f"  uid={auth_resp.get('user_id', '?')}"))
+            print(green("  [events] Auth OK") + dim(f"  uid={auth_resp.get('user_id', '?')}"))
             print(dim("  [events] Listening for pipeline events...\n"))
 
             # Listen until all_done is set
             while not all_done.is_set():
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
                 except Exception:
                     break
@@ -162,7 +199,13 @@ async def listen_events(token: str, all_done: asyncio.Event, pipeline_seen: asyn
                     stages = bp.get("stages", [])
                     agents = bp.get("total_agents", 0)
                     print()
-                    print(bold(cyan(f"  ┌─ Pipeline Created: {pid} ({len(stages)} stages, {agents} agents)")))
+                    print(
+                        bold(
+                            cyan(
+                                f"  ┌─ Pipeline Created: {pid} ({len(stages)} stages, {agents} agents)"
+                            )
+                        )
+                    )
                     print(cyan(f"  │  Task: {bp.get('task_description', '')[:80]}"))
                     for i, stage in enumerate(stages):
                         connector = "├" if i < len(stages) - 1 else "└"
@@ -170,7 +213,11 @@ async def listen_events(token: str, all_done: asyncio.Event, pipeline_seen: asyn
                             f"[{t['persona_id']}] {t['description'][:40]}"
                             for t in stage.get("tasks", [])
                         )
-                        print(cyan(f"  {connector}─ Stage {i+1}: {stage['name']} ({stage['stage_type']})"))
+                        print(
+                            cyan(
+                                f"  {connector}─ Stage {i + 1}: {stage['name']} ({stage['stage_type']})"
+                            )
+                        )
                         print(dim(f"  │     {tasks_str}"))
                     print()
 
@@ -181,14 +228,22 @@ async def listen_events(token: str, all_done: asyncio.Event, pipeline_seen: asyn
                     icon = STAGE_STATUS_ICON.get(status, "❓")
                     pct = f"{int(progress * 100):3d}%"
                     ts = time.strftime("%H:%M:%S")
-                    color_fn = green if status == "completed" else (yellow if status == "running" else (red if status == "failed" else dim))
+                    color_fn = (
+                        green
+                        if status == "completed"
+                        else (
+                            yellow if status == "running" else (red if status == "failed" else dim)
+                        )
+                    )
                     print(f"  {dim(ts)} {icon} {color_fn(f'{stage:<20}')} {dim(pct)} {dim(status)}")
 
                     if all_done.is_set():
                         break
                 else:
                     # Other events (genui, cross_client, etc.) — just note them
-                    print(dim(f"  [events] {etype}: {json.dumps(event, separators=(',', ':'))[:80]}"))
+                    print(
+                        dim(f"  [events] {etype}: {json.dumps(event, separators=(',', ':'))[:80]}")
+                    )
 
     except Exception as e:
         print(red(f"  [events] Error: {e}"))
@@ -222,25 +277,32 @@ async def run_chat(token: str, all_done: asyncio.Event) -> bool:
             await ws.send(json.dumps(auth_msg))
             raw = await asyncio.wait_for(ws.recv(), timeout=15)
             auth_resp = json.loads(raw)
-            if auth_resp.get("type") not in ("auth_response", "connected") and auth_resp.get("status") != "ok":
+            if (
+                auth_resp.get("type") not in ("auth_response", "connected")
+                and auth_resp.get("status") != "ok"
+            ):
                 print(red(f"  [chat] Auth failed: {auth_resp}"))
                 return False
-            print(green(f"  [chat] Auth OK"))
+            print(green("  [chat] Auth OK"))
 
             # Drain any session bootstrap messages
             try:
                 while True:
                     await asyncio.wait_for(ws.recv(), timeout=1.5)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
 
             # Send the complex task
             print(f"\n  {bold('Sending complex task:')}")
             print(f"  {yellow(COMPLEX_TASK)}\n")
-            await ws.send(json.dumps({
-                "type": "text",
-                "content": COMPLEX_TASK,
-            }))
+            await ws.send(
+                json.dumps(
+                    {
+                        "type": "text",
+                        "content": COMPLEX_TASK,
+                    }
+                )
+            )
 
             # Collect responses with a long timeout (pipeline execution takes time)
             messages: list[dict] = []
@@ -255,7 +317,7 @@ async def run_chat(token: str, all_done: asyncio.Event) -> bool:
                 silence = 90.0 if saw_plan_task and not has_response else 15.0
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=min(remaining, silence))
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if has_response:
                         break
                     if idle_count >= 2:
@@ -286,7 +348,9 @@ async def run_chat(token: str, all_done: asyncio.Event) -> bool:
                         to_agent = args.get("agent_name", args.get("agent", "?"))
                         print(f"  {blue('⚡ [transfer]')} → {bold(to_agent)}")
                     else:
-                        print(f"  {blue(f'⚡ [{tool}]')} {dim(json.dumps(args, separators=(',', ':'))[:80])}")
+                        print(
+                            f"  {blue(f'⚡ [{tool}]')} {dim(json.dumps(args, separators=(',', ':'))[:80])}"
+                        )
 
                 elif t == "tool_response":
                     tool = msg.get("tool_name", "?")
@@ -320,7 +384,11 @@ async def run_chat(token: str, all_done: asyncio.Event) -> bool:
                 elif t == "status":
                     state = msg.get("state", "?")
                     detail = msg.get("detail", "")
-                    color_fn = green if state == "idle" else (yellow if state in ("processing", "listening") else dim)
+                    color_fn = (
+                        green
+                        if state == "idle"
+                        else (yellow if state in ("processing", "listening") else dim)
+                    )
                     detail_str = dim(f"  ({detail})") if detail else ""
                     print(f"  {dim('[status]')} {color_fn(state)}{detail_str}")
                     if state == "idle":
@@ -329,7 +397,9 @@ async def run_chat(token: str, all_done: asyncio.Event) -> bool:
                             break
 
                 elif t == "error":
-                    print(f"  {red('[error]')} {msg.get('code', '?')}: {msg.get('description', '')}")
+                    print(
+                        f"  {red('[error]')} {msg.get('code', '?')}: {msg.get('description', '')}"
+                    )
                     break
 
                 elif t not in ("auth_response", "connected", "persona_changed"):
@@ -340,6 +410,7 @@ async def run_chat(token: str, all_done: asyncio.Event) -> bool:
     except Exception as e:
         print(red(f"  [chat] Error: {e}"))
         import traceback
+
         traceback.print_exc()
         return False
     finally:
@@ -372,7 +443,7 @@ async def main() -> None:
     # Wait for event listener to finish
     try:
         await asyncio.wait_for(events_task, timeout=5)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         events_task.cancel()
 
     print()

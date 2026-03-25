@@ -39,6 +39,7 @@ _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file, override=False)
     except ImportError:
         for _line in _env_file.read_text().splitlines():
@@ -55,8 +56,7 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 API_BASE = f"{BACKEND_URL}/api/v1"
 DESKTOP_URL = f"{API_BASE}/tasks/desktop"
 FIREBASE_SIGN_IN_URL = (
-    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-    f"?key={FIREBASE_API_KEY}"
+    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
 )
 
 # ── Colours ────────────────────────────────────────────────────────────
@@ -67,18 +67,36 @@ def _c(code: str, text: str) -> str:
     return f"{code}{text}\033[0m" if USE_COLOR else text
 
 
-def green(t: str) -> str: return _c("\033[92m", t)
-def red(t: str) -> str:   return _c("\033[91m", t)
-def yellow(t: str) -> str:return _c("\033[93m", t)
-def cyan(t: str) -> str:  return _c("\033[96m", t)
-def bold(t: str) -> str:  return _c("\033[1m", t)
-def dim(t: str) -> str:   return _c("\033[2m", t)
+def green(t: str) -> str:
+    return _c("\033[92m", t)
+
+
+def red(t: str) -> str:
+    return _c("\033[91m", t)
+
+
+def yellow(t: str) -> str:
+    return _c("\033[93m", t)
+
+
+def cyan(t: str) -> str:
+    return _c("\033[96m", t)
+
+
+def bold(t: str) -> str:
+    return _c("\033[1m", t)
+
+
+def dim(t: str) -> str:
+    return _c("\033[2m", t)
 
 
 # ── Firebase Auth ──────────────────────────────────────────────────────
 
+
 async def get_firebase_token() -> str:
     import httpx
+
     if not FIREBASE_API_KEY or not EMAIL or not PASSWORD:
         print(red("  Missing FIREBASE_WEB_API_KEY, TEST_USER_EMAIL, or TEST_USER_PASSWORD"))
         sys.exit(1)
@@ -101,8 +119,10 @@ async def get_firebase_token() -> str:
 
 # ── Tests ──────────────────────────────────────────────────────────────
 
+
 async def run_tests(token: str):
     import httpx
+
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     results = []
 
@@ -116,21 +136,31 @@ async def run_tests(token: str):
     async def api_get(path: str) -> dict:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(f"{DESKTOP_URL}{path}", headers=headers)
-            return {"status": resp.status_code, "body": resp.json() if resp.status_code < 500 else {}}
+            return {
+                "status": resp.status_code,
+                "body": resp.json() if resp.status_code < 500 else {},
+            }
 
     async def api_post(path: str, data: dict | None = None) -> dict:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(f"{DESKTOP_URL}{path}", headers=headers, json=data or {})
-            return {"status": resp.status_code, "body": resp.json() if resp.status_code < 500 else {}}
+            return {
+                "status": resp.status_code,
+                "body": resp.json() if resp.status_code < 500 else {},
+            }
 
     # ── Test 1: Initial status (should be no desktop) ──
     print(f"\n{bold('1. Initial Desktop Status')}")
     resp = await api_get("/status")
-    no_desktop = resp["status"] == 200 and resp["body"].get("status") in (None, "destroyed", "no_desktop")
+    resp["status"] == 200 and resp["body"].get("status") in (
+        None,
+        "destroyed",
+        "no_desktop",
+    )
     record(
         "Initial status (no active desktop)",
         resp["status"] == 200,
-        f"HTTP {resp['status']}, status={resp['body'].get('status', 'N/A')}"
+        f"HTTP {resp['status']}, status={resp['body'].get('status', 'N/A')}",
     )
 
     # ── Test 2: Start desktop ──
@@ -149,16 +179,12 @@ async def run_tests(token: str):
         record(
             "Start desktop",
             True,
-            f"sandbox_id={sandbox_id}, status={status}, stream_url={'yes' if stream_url else 'no'}, elapsed={elapsed}s"
+            f"sandbox_id={sandbox_id}, status={status}, stream_url={'yes' if stream_url else 'no'}, elapsed={elapsed}s",
         )
         if stream_url:
             print(dim(f"         Stream URL: {stream_url[:100]}"))
     else:
-        record(
-            "Start desktop",
-            False,
-            f"HTTP {resp['status']}: {resp['body']}"
-        )
+        record("Start desktop", False, f"HTTP {resp['status']}: {resp['body']}")
 
     # ── Test 3: Check status (should be active) ──
     print(f"\n{bold('3. Active Desktop Status')}")
@@ -169,7 +195,7 @@ async def run_tests(token: str):
         record(
             "Desktop active",
             active,
-            f"status={status}, sandbox_id={resp['body'].get('sandbox_id', '?')}"
+            f"status={status}, sandbox_id={resp['body'].get('sandbox_id', '?')}",
         )
     else:
         record("Desktop active", False, f"HTTP {resp['status']}")
@@ -178,11 +204,7 @@ async def run_tests(token: str):
     print(f"\n{bold('4. Stop Desktop')}")
     resp = await api_post("/stop")
     stop_ok = resp["status"] in (200, 204)
-    record(
-        "Stop desktop",
-        stop_ok,
-        f"HTTP {resp['status']}"
-    )
+    record("Stop desktop", stop_ok, f"HTTP {resp['status']}")
 
     # ── Test 5: Verify cleanup ──
     print(f"\n{bold('5. Verify Cleanup')}")
@@ -191,9 +213,7 @@ async def run_tests(token: str):
     if resp["status"] == 200:
         status = resp["body"].get("status", "?")
         record(
-            "Desktop cleaned up",
-            status in (None, "destroyed", "no_desktop"),
-            f"status={status}"
+            "Desktop cleaned up", status in (None, "destroyed", "no_desktop"), f"status={status}"
         )
     else:
         record("Desktop cleaned up", resp["status"] == 200, f"HTTP {resp['status']}")
@@ -202,6 +222,7 @@ async def run_tests(token: str):
 
 
 # ── Main ───────────────────────────────────────────────────────────────
+
 
 async def main():
     parser = argparse.ArgumentParser(description="E2B Desktop Integration Test")
@@ -225,10 +246,11 @@ async def main():
 
     # Smoke
     import httpx
+
     async with httpx.AsyncClient(timeout=10) as client:
         try:
             r = await client.get(f"{BACKEND_URL}/api/v1/health")
-            print(green(f"\n  Backend reachable") + dim(f" ({r.status_code})"))
+            print(green("\n  Backend reachable") + dim(f" ({r.status_code})"))
         except Exception as e:
             print(red(f"\n  Backend unreachable: {e}"))
             sys.exit(1)
@@ -239,7 +261,9 @@ async def main():
     failed = sum(1 for r in results if not r["passed"])
 
     print(bold("\n═══════════════════════════════════════════════"))
-    print(f"  Results: {green(f'{passed} passed')}  {red(f'{failed} failed') if failed else ''}  ({len(results)} total)")
+    print(
+        f"  Results: {green(f'{passed} passed')}  {red(f'{failed} failed') if failed else ''}  ({len(results)} total)"
+    )
     print(bold("═══════════════════════════════════════════════\n"))
 
     sys.exit(1 if failed else 0)

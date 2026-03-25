@@ -34,12 +34,12 @@ warnings.filterwarnings(
     module=r"pydantic\.main",
 )
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect  # noqa: E402
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.config import settings  # noqa: E402
-from app.middleware.auth_middleware import AuthenticatedUser, _get_firebase_app  # noqa: E402
-from app.models.client import ClientType  # noqa: E402
-from app.models.ws_messages import (  # noqa: E402
+from app.config import settings
+from app.middleware.auth_middleware import AuthenticatedUser, _get_firebase_app
+from app.models.client import ClientType
+from app.models.ws_messages import (
     ActionKind,
     AgentResponse,
     AgentState,
@@ -56,11 +56,11 @@ from app.models.ws_messages import (  # noqa: E402
     TranscriptionDirection,
     TranscriptionMessage,
 )
-from app.services.connection_manager import get_connection_manager  # noqa: E402
-from app.services.event_bus import EventBus, get_event_bus  # noqa: E402
-from app.services.mcp_manager import get_mcp_manager  # noqa: E402
-from app.services.memory_service import get_memory_service  # noqa: E402
-from app.utils.logging import get_logger  # noqa: E402
+from app.services.connection_manager import get_connection_manager
+from app.services.event_bus import EventBus, get_event_bus
+from app.services.mcp_manager import get_mcp_manager
+from app.services.memory_service import get_memory_service
+from app.utils.logging import get_logger
 
 # Per-task context variable: set to `str(id(websocket))` inside every
 # _process_event() call so _publish() can stamp the origin connection.
@@ -551,10 +551,14 @@ async def _lazy_create_firestore_session(
             await svc.link_adk_session(fs.id, adk_session_id)
         # Notify client of the new session ID
         with contextlib.suppress(Exception):
-            await websocket.send_text(json.dumps({
-                "type": "session_created",
-                "firestore_session_id": fs.id,
-            }))
+            await websocket.send_text(
+                json.dumps(
+                    {
+                        "type": "session_created",
+                        "firestore_session_id": fs.id,
+                    }
+                )
+            )
         logger.info("lazy_session_created", user_id=user_id, session_id=fs.id)
         # Auto-generate title from first content (non-blocking)
         if first_content.strip():
@@ -582,7 +586,7 @@ async def _upstream(
     _upstream_client_type = client_type or ClientType.WEB
     _title_generated = False
     _holds_mic_floor = False  # True once this connection has acquired the floor
-    _busy_notified = False    # Limit busy notifications to once per "episode"
+    _busy_notified = False  # Limit busy notifications to once per "episode"
     # Mutable ref so lazy session creation can update the ID
     _fs_ref = firestore_session_id_ref if firestore_session_id_ref is not None else [None]
     from google.genai import types
@@ -597,22 +601,26 @@ async def _upstream(
                     if mgr.try_acquire_mic_floor(user_id, _upstream_client_type):
                         _holds_mic_floor = True
                         _busy_notified = False
-                        floor_msg = json.dumps({
-                            "type": "mic_floor",
-                            "event": "acquired",
-                            "holder": str(_upstream_client_type),
-                        })
+                        floor_msg = json.dumps(
+                            {
+                                "type": "mic_floor",
+                                "event": "acquired",
+                                "holder": str(_upstream_client_type),
+                            }
+                        )
                         _fire_and_forget(mgr.send_to_user(user_id, floor_msg))
                     else:
                         # Another device holds the floor — notify once then drop silently
                         if not _busy_notified:
                             _busy_notified = True
                             holder = mgr.get_mic_floor_holder(user_id)
-                            busy_msg = json.dumps({
-                                "type": "mic_floor",
-                                "event": "busy",
-                                "holder": str(holder) if holder else "unknown",
-                            })
+                            busy_msg = json.dumps(
+                                {
+                                    "type": "mic_floor",
+                                    "event": "busy",
+                                    "holder": str(holder) if holder else "unknown",
+                                }
+                            )
                             with contextlib.suppress(Exception):
                                 await websocket.send_text(busy_msg)
                         continue  # drop this audio frame
@@ -655,7 +663,9 @@ async def _upstream(
                             "type": "user_message",
                             "content": content_str,
                             "_origin_conn": conn_tag,
-                            "_origin_client_type": str(_upstream_client_type) if _upstream_client_type else "",
+                            "_origin_client_type": str(_upstream_client_type)
+                            if _upstream_client_type
+                            else "",
                         }
                         _fire_and_forget(bus.publish(user_id, json.dumps(user_msg)))
                     # Increment message count (best-effort, non-blocking)
@@ -665,6 +675,7 @@ async def _upstream(
                     if not _title_generated and _fs_ref[0] and content_str.strip():
                         _title_generated = True
                         from app.services.session_service import get_session_service as _get_fs_svc
+
                         _fire_and_forget(
                             _get_fs_svc().generate_title_from_message(_fs_ref[0], content_str)
                         )
@@ -745,27 +756,37 @@ async def _upstream(
                         _busy_notified = False
                         # Unicast "granted" via locked send so it doesn't race with
                         # relay_task or _downstream sending concurrently.
-                        granted_msg = json.dumps({
-                            "type": "mic_floor",
-                            "event": "granted",
-                            "holder": str(_upstream_client_type),
-                        })
+                        granted_msg = json.dumps(
+                            {
+                                "type": "mic_floor",
+                                "event": "granted",
+                                "holder": str(_upstream_client_type),
+                            }
+                        )
                         await mgr.send_to_client(user_id, _upstream_client_type, granted_msg)
                         # Broadcast "acquired" to ALL clients (including self) for UI state sync
-                        floor_msg = json.dumps({
-                            "type": "mic_floor",
-                            "event": "acquired",
-                            "holder": str(_upstream_client_type),
-                        })
+                        floor_msg = json.dumps(
+                            {
+                                "type": "mic_floor",
+                                "event": "acquired",
+                                "holder": str(_upstream_client_type),
+                            }
+                        )
                         _fire_and_forget(mgr.send_to_user(user_id, floor_msg))
-                        logger.info("mic_acquire_granted", user_id=user_id, client_type=_upstream_client_type)
+                        logger.info(
+                            "mic_acquire_granted",
+                            user_id=user_id,
+                            client_type=_upstream_client_type,
+                        )
                     else:
                         holder = mgr.get_mic_floor_holder(user_id)
-                        denied_msg = json.dumps({
-                            "type": "mic_floor",
-                            "event": "denied",
-                            "holder": str(holder) if holder else "unknown",
-                        })
+                        denied_msg = json.dumps(
+                            {
+                                "type": "mic_floor",
+                                "event": "denied",
+                                "holder": str(holder) if holder else "unknown",
+                            }
+                        )
                         await mgr.send_to_client(user_id, _upstream_client_type, denied_msg)
                         logger.info("mic_acquire_denied", user_id=user_id, holder=holder)
                 elif msg_type == "mic_release":
@@ -774,13 +795,19 @@ async def _upstream(
                     released = mgr.release_mic_floor(user_id, _upstream_client_type)
                     if released:
                         _holds_mic_floor = False
-                        floor_msg = json.dumps({
-                            "type": "mic_floor",
-                            "event": "released",
-                            "holder": str(_upstream_client_type),
-                        })
+                        floor_msg = json.dumps(
+                            {
+                                "type": "mic_floor",
+                                "event": "released",
+                                "holder": str(_upstream_client_type),
+                            }
+                        )
                         _fire_and_forget(mgr.send_to_user(user_id, floor_msg))
-                        logger.info("mic_release_explicit", user_id=user_id, client_type=_upstream_client_type)
+                        logger.info(
+                            "mic_release_explicit",
+                            user_id=user_id,
+                            client_type=_upstream_client_type,
+                        )
                 # Other control messages (persona_switch)
                 # are handled at the API layer, not pushed to ADK
     except (WebSocketDisconnect, RuntimeError):
@@ -796,11 +823,14 @@ async def _upstream(
             released = mgr.release_mic_floor(user_id, _upstream_client_type)
             if released:
                 import json as _json
-                floor_msg = _json.dumps({
-                    "type": "mic_floor",
-                    "event": "released",
-                    "holder": str(_upstream_client_type),
-                })
+
+                floor_msg = _json.dumps(
+                    {
+                        "type": "mic_floor",
+                        "event": "released",
+                        "holder": str(_upstream_client_type),
+                    }
+                )
                 _fire_and_forget(mgr.send_to_user(user_id, floor_msg))
 
 
@@ -842,16 +872,28 @@ async def _downstream(
                 run_config=run_config,
             ):
                 if first_event:
-                    logger.info("live_connection_established", user_id=user_id, session_id=session_id)
+                    logger.info(
+                        "live_connection_established", user_id=user_id, session_id=session_id
+                    )
                     first_event = False
                 _tool_error_count = 0  # Reset on successful event
                 _rate_limit_count = 0
-                await _process_event(websocket, event, bus, user_id, conn_tag=str(id(websocket)), client_type=client_type)
+                await _process_event(
+                    websocket,
+                    event,
+                    bus,
+                    user_id,
+                    conn_tag=str(id(websocket)),
+                    client_type=client_type,
+                )
             # Generator exhausted — may be an agent transfer or graceful end.
             # Restart the loop so the new active agent can continue processing.
             # The ADK session state (including the transferred agent) is preserved.
-            logger.info("ws_downstream_generator_exhausted", user_id=user_id,
-                        note="restarting run_live (likely agent transfer)")
+            logger.info(
+                "ws_downstream_generator_exhausted",
+                user_id=user_id,
+                note="restarting run_live (likely agent transfer)",
+            )
             continue
         except (WebSocketDisconnect, RuntimeError):
             logger.info("ws_downstream_disconnected", user_id=user_id)
@@ -862,22 +904,26 @@ async def _downstream(
             # reset state to idle, and restart the live loop so the session stays alive.
             if "not found" in exc_str.lower() and "tool" in exc_str.lower():
                 _tool_error_count += 1
-                logger.warning("ws_downstream_tool_not_found", user_id=user_id, error=exc_str, attempt=_tool_error_count)
+                logger.warning(
+                    "ws_downstream_tool_not_found",
+                    user_id=user_id,
+                    error=exc_str,
+                    attempt=_tool_error_count,
+                )
                 # Feed a graceful error back into the live queue so Gemini's
                 # voice continues naturally instead of going silent / crashing.
                 # The model will read this as user input and respond verbally.
                 from google.genai import types as _types
+
                 _recovery_text = (
                     "[System]: That tool is not available on the root agent. "
                     "Route to the correct specialist persona instead. "
                     "Tell the user briefly what happened and offer to try again."
                 )
-                try:
+                with contextlib.suppress(Exception):
                     queue.send_content(
                         _types.Content(role="user", parts=[_types.Part(text=_recovery_text)])
                     )
-                except Exception:
-                    pass
                 # Also send IDLE status so frontend unblocks
                 with contextlib.suppress(Exception):
                     idle_msg = StatusMessage(state=AgentState.IDLE)
@@ -910,7 +956,9 @@ async def _downstream(
                     )
                     await websocket.send_text(err.model_dump_json())
                 with contextlib.suppress(Exception):
-                    await websocket.send_text(StatusMessage(state=AgentState.IDLE).model_dump_json())
+                    await websocket.send_text(
+                        StatusMessage(state=AgentState.IDLE).model_dump_json()
+                    )
                 return  # Let the client reconnect cleanly
 
             # Model not found / sub-agent live connection failed (e.g. 1008)
@@ -918,7 +966,12 @@ async def _downstream(
             # handle the request instead of the failed sub-agent.
             if "1008" in exc_str or ("model" in exc_str_lower and "not found" in exc_str_lower):
                 _tool_error_count += 1
-                logger.warning("ws_downstream_model_error", user_id=user_id, error=exc_str[:200], attempt=_tool_error_count)
+                logger.warning(
+                    "ws_downstream_model_error",
+                    user_id=user_id,
+                    error=exc_str[:200],
+                    attempt=_tool_error_count,
+                )
                 with contextlib.suppress(Exception):
                     err = ErrorMessage(
                         code="model_error",
@@ -926,7 +979,9 @@ async def _downstream(
                     )
                     await websocket.send_text(err.model_dump_json())
                 with contextlib.suppress(Exception):
-                    await websocket.send_text(StatusMessage(state=AgentState.IDLE).model_dump_json())
+                    await websocket.send_text(
+                        StatusMessage(state=AgentState.IDLE).model_dump_json()
+                    )
                 if _tool_error_count >= _MAX_TOOL_RETRIES:
                     logger.error("ws_downstream_model_error_max_retries", user_id=user_id)
                     break
@@ -956,8 +1011,13 @@ async def _downstream(
                     await websocket.send_text(err.model_dump_json())
             elif "429" in exc_str or "resource_exhausted" in exc_str_lower:
                 _rate_limit_count += 1
-                backoff = min(2 ** _rate_limit_count, 16)  # 2s, 4s, 8s, 16s
-                logger.warning("ws_downstream_rate_limited", user_id=user_id, attempt=_rate_limit_count, backoff_s=backoff)
+                backoff = min(2**_rate_limit_count, 16)  # 2s, 4s, 8s, 16s
+                logger.warning(
+                    "ws_downstream_rate_limited",
+                    user_id=user_id,
+                    attempt=_rate_limit_count,
+                    backoff_s=backoff,
+                )
                 with contextlib.suppress(Exception):
                     err = ErrorMessage(
                         code="rate_limited",
@@ -965,7 +1025,9 @@ async def _downstream(
                     )
                     await websocket.send_text(err.model_dump_json())
                 with contextlib.suppress(Exception):
-                    await websocket.send_text(StatusMessage(state=AgentState.IDLE).model_dump_json())
+                    await websocket.send_text(
+                        StatusMessage(state=AgentState.IDLE).model_dump_json()
+                    )
                 if _rate_limit_count >= _MAX_RATE_LIMIT_RETRIES:
                     logger.error("ws_downstream_rate_limit_max_retries", user_id=user_id)
                     with contextlib.suppress(Exception):
@@ -990,9 +1052,7 @@ async def _downstream(
 
 # Persona AgentTool names — persona agents wrapped via AgentTool.
 # Used to emit transfer-like messages and drain pending results.
-_PERSONA_AGENT_NAMES = frozenset(
-    {"coder", "researcher", "analyst", "creative", "genui"}
-)
+_PERSONA_AGENT_NAMES = frozenset({"coder", "researcher", "analyst", "creative", "genui"})
 
 # Cross-device T3 tool names (from app.tools.cross_client)
 _CROSS_DEVICE_TOOLS = frozenset(
@@ -1008,14 +1068,28 @@ _CROSS_DEVICE_TOOLS = frozenset(
 # E2B cloud sandbox desktop tool names (from app.tools.desktop_tools)
 _E2B_DESKTOP_TOOLS = frozenset(
     {
-        "start_desktop", "stop_desktop", "desktop_status",
-        "desktop_start_streaming", "desktop_stop_streaming",
+        "start_desktop",
+        "stop_desktop",
+        "desktop_status",
+        "desktop_start_streaming",
+        "desktop_stop_streaming",
         "desktop_screenshot",
-        "desktop_click", "desktop_scroll", "desktop_drag", "desktop_type",
-        "desktop_hotkey", "desktop_launch", "desktop_open_url", "desktop_get_windows",
-        "desktop_bash", "desktop_upload_file", "desktop_download_file",
-        "desktop_read_screen", "desktop_exec_and_show", "desktop_find_and_click",
-        "desktop_list_files", "desktop_multi_step",
+        "desktop_click",
+        "desktop_scroll",
+        "desktop_drag",
+        "desktop_type",
+        "desktop_hotkey",
+        "desktop_launch",
+        "desktop_open_url",
+        "desktop_get_windows",
+        "desktop_bash",
+        "desktop_upload_file",
+        "desktop_download_file",
+        "desktop_read_screen",
+        "desktop_exec_and_show",
+        "desktop_find_and_click",
+        "desktop_list_files",
+        "desktop_multi_step",
     }
 )
 
@@ -1167,9 +1241,19 @@ async def _process_event(
             elif _p.text:
                 _parts_summary.append(f"text({len(_p.text)}ch)")
     _fc_names = [fc.name for fc in event.get_function_calls()] if event.get_function_calls() else []
-    _fr_names = [fr.name for fr in event.get_function_responses()] if event.get_function_responses() else []
-    _in_t = event.input_transcription.text[:80] if event.input_transcription and event.input_transcription.text else ""
-    _out_t = event.output_transcription.text[:80] if event.output_transcription and event.output_transcription.text else ""
+    _fr_names = (
+        [fr.name for fr in event.get_function_responses()] if event.get_function_responses() else []
+    )
+    _in_t = (
+        event.input_transcription.text[:80]
+        if event.input_transcription and event.input_transcription.text
+        else ""
+    )
+    _out_t = (
+        event.output_transcription.text[:80]
+        if event.output_transcription and event.output_transcription.text
+        else ""
+    )
     if _parts_summary or _fc_names or _fr_names or _in_t or _out_t:
         logger.debug(
             "process_event_detail",
@@ -1311,8 +1395,8 @@ async def _process_event(
     # function_response event.
     #
     from app.tools.desktop_tools import SCREENSHOT_TOOL_NAMES, drain_pending_screenshots
-    from app.tools.image_gen import IMAGE_TOOL_NAMES, drain_pending_images
     from app.tools.genui_schema import RENDER_GENUI_TOOL_NAME, drain_pending_genui
+    from app.tools.image_gen import IMAGE_TOOL_NAMES, drain_pending_images
 
     # Track whether we already drained images in this event to prevent double delivery.
     _images_drained_this_event = False
@@ -1324,7 +1408,12 @@ async def _process_event(
 
         # ── Persona AgentTool response — drain pending genui/images ──
         if fr.name in _PERSONA_AGENT_NAMES:
-            logger.info("persona_tool_response", agent=fr.name, user_id=user_id, response_preview=str(fr.response)[:200] if fr.response else "None")
+            logger.info(
+                "persona_tool_response",
+                agent=fr.name,
+                user_id=user_id,
+                response_preview=str(fr.response)[:200] if fr.response else "None",
+            )
             # Drain pending GenUI components queued by the sub-agent
             if user_id:
                 _drained_genui = drain_pending_genui(user_id)
@@ -1340,13 +1429,17 @@ async def _process_event(
                     logger.info("genui_via_agent_tool", agent=fr.name, conn=conn_tag)
                 # Track drained count so text-parse path skips duplicates
                 if _drained_genui:
-                    _genui_drain_count[conn_tag] = _genui_drain_count.get(conn_tag, 0) + len(_drained_genui)
+                    _genui_drain_count[conn_tag] = _genui_drain_count.get(conn_tag, 0) + len(
+                        _drained_genui
+                    )
 
                 # Drain pending images queued by the sub-agent
                 _img_items = drain_pending_images(user_id)
                 if _img_items:
                     _images_drained_this_event = True
-                    logger.info("image_drain_persona", agent=fr.name, count=len(_img_items), conn=conn_tag)
+                    logger.info(
+                        "image_drain_persona", agent=fr.name, count=len(_img_items), conn=conn_tag
+                    )
                 for img_data in _img_items:
                     img_msg = ImageResponseMessage(**img_data)
                     ij = img_msg.model_dump_json()
@@ -1391,7 +1484,9 @@ async def _process_event(
             _img_items = drain_pending_images(user_id)
             if _img_items:
                 _images_drained_this_event = True
-                logger.info("image_drain_direct_tool", tool=fr.name, count=len(_img_items), conn=conn_tag)
+                logger.info(
+                    "image_drain_direct_tool", tool=fr.name, count=len(_img_items), conn=conn_tag
+                )
             for img_data in _img_items:
                 img_msg = ImageResponseMessage(**img_data)
                 json_str = img_msg.model_dump_json()
@@ -1443,7 +1538,9 @@ async def _process_event(
         _genui_json = _delta.get("_genui_result")
         if _genui_json:
             try:
-                genui_payload = json.loads(_genui_json) if isinstance(_genui_json, str) else _genui_json
+                genui_payload = (
+                    json.loads(_genui_json) if isinstance(_genui_json, str) else _genui_json
+                )
                 genui_msg = AgentResponse(
                     content_type=ContentType.GENUI,
                     data="",
@@ -1707,7 +1804,11 @@ async def ws_live(websocket: WebSocket) -> None:
             else:
                 # First ever connection — ADK only, Firestore lazy
                 session_id = await _get_or_create_adk_session(user.uid, active_session_service)
-            logger.info("connected_to_latest_session", user_id=user.uid, firestore_session_id=firestore_session_id)
+            logger.info(
+                "connected_to_latest_session",
+                user_id=user.uid,
+                firestore_session_id=firestore_session_id,
+            )
     except Exception:
         # Fallback: ensure ADK session exists
         if not session_id:
@@ -1755,12 +1856,15 @@ async def ws_live(websocket: WebSocket) -> None:
 
     # Send auth success + connected message
     auth_ok = AuthResponse(
-        status="ok", user_id=user.uid, session_id=session_id or "",
+        status="ok",
+        user_id=user.uid,
+        session_id=session_id or "",
         firestore_session_id=firestore_session_id or "",
         available_tools=available_tool_names,
         other_clients_online=[str(ct) for ct in other_clients],
     )
     from starlette.websockets import WebSocketDisconnect
+
     connected = ConnectedMessage(session_id=session_id or "")
     try:
         await websocket.send_text(auth_ok.model_dump_json())
@@ -1795,6 +1899,7 @@ async def ws_live(websocket: WebSocket) -> None:
 
     # Register the queue so E2B desktop streaming tools can push frames
     from app.tools.desktop_tools import register_live_queue, unregister_live_queue
+
     register_live_queue(user.uid, queue)
 
     # Subscribe to EventBus so events from other sessions (e.g. /ws/chat or another /ws/live)
@@ -1805,7 +1910,9 @@ async def ws_live(websocket: WebSocket) -> None:
     bus.subscribe(user.uid, cross_queue)
     relay_task = asyncio.create_task(
         _relay_cross_events(
-            websocket, cross_queue, own_conn_tag,
+            websocket,
+            cross_queue,
+            own_conn_tag,
             own_client_type=str(client_type),
             user_id=user.uid,
             client_type=client_type,
@@ -1837,13 +1944,29 @@ async def ws_live(websocket: WebSocket) -> None:
     fs_id_ref = [firestore_session_id]
     try:
         up_task = asyncio.create_task(
-            _upstream(websocket, queue, user.uid, client_type, firestore_session_id_ref=fs_id_ref, conn_tag=own_conn_tag, adk_session_id=session_id),
+            _upstream(
+                websocket,
+                queue,
+                user.uid,
+                client_type,
+                firestore_session_id_ref=fs_id_ref,
+                conn_tag=own_conn_tag,
+                adk_session_id=session_id,
+            ),
             name="upstream",
         )
         # Only start downstream (agent runner) if we have a valid session_id
         if session_id:
             down_task = asyncio.create_task(
-                _downstream(websocket, runner, user.uid, session_id, queue, run_config, client_type=str(client_type)),
+                _downstream(
+                    websocket,
+                    runner,
+                    user.uid,
+                    session_id,
+                    queue,
+                    run_config,
+                    client_type=str(client_type),
+                ),
                 name="downstream",
             )
             tasks = {up_task, down_task}
@@ -2083,7 +2206,9 @@ async def ws_chat(websocket: WebSocket) -> None:
                 with contextlib.suppress(asyncio.CancelledError):
                     await _active_turn
                 # Let the user know the previous turn was interrupted
-                interrupt_msg = StatusMessage(state=AgentState.IDLE, detail="Interrupted — processing new message")
+                interrupt_msg = StatusMessage(
+                    state=AgentState.IDLE, detail="Interrupted — processing new message"
+                )
                 with contextlib.suppress(Exception):
                     await websocket.send_text(interrupt_msg.model_dump_json())
 
@@ -2100,7 +2225,14 @@ async def ws_chat(websocket: WebSocket) -> None:
                         session_id=session_id,
                         new_message=_content,
                     ):
-                        await _process_event(websocket, event, bus, user.uid, conn_tag=own_conn_tag, client_type=str(client_type))
+                        await _process_event(
+                            websocket,
+                            event,
+                            bus,
+                            user.uid,
+                            conn_tag=own_conn_tag,
+                            client_type=str(client_type),
+                        )
                     # run_async events don't carry turn_complete, so send IDLE explicitly
                     idle_msg = StatusMessage(state=AgentState.IDLE)
                     await websocket.send_text(idle_msg.model_dump_json())
@@ -2131,7 +2263,9 @@ async def ws_chat(websocket: WebSocket) -> None:
                         )
                         await websocket.send_text(err_msg.model_dump_json())
                     # Always return to IDLE so the client re-enables input
-                    await websocket.send_text(StatusMessage(state=AgentState.IDLE).model_dump_json())
+                    await websocket.send_text(
+                        StatusMessage(state=AgentState.IDLE).model_dump_json()
+                    )
 
             _active_turn = asyncio.create_task(_run_turn(), name=f"chat_turn_{own_conn_tag}")
 

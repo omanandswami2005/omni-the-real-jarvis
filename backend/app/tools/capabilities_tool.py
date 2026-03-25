@@ -144,8 +144,7 @@ def _get_capabilities_data(user_id: str) -> dict:
         summary_parts.append("0 plugins enabled (T2)")
     if t3_entries:
         summary_parts.append(
-            f"{len(t3_entries)} client-local tools from "
-            f"{', '.join(sorted(t3_clients))} (T3)"
+            f"{len(t3_entries)} client-local tools from {', '.join(sorted(t3_clients))} (T3)"
         )
     else:
         summary_parts.append("0 client-local tools (T3)")
@@ -225,7 +224,7 @@ def _render_markdown(data: dict) -> str:
         if len(t1_names) > 8:
             tool_list += f", +{len(t1_names) - 8} more"
         lines.append(f"### {display_name}")
-        lines.append(f"Call: `{pid}(\"your request\")` — {desc}")
+        lines.append(f'Call: `{pid}("your request")` — {desc}')
         if tool_list:
             lines.append(f"Core tools: {tool_list}")
         lines.append("")
@@ -244,17 +243,13 @@ def _render_markdown(data: dict) -> str:
                 f"or call directly for calendar/email/Notion."
             )
     else:
-        lines.append(
-            "*(No plugins enabled — user can enable plugins in the dashboard Settings)*"
-        )
+        lines.append("*(No plugins enabled — user can enable plugins in the dashboard Settings)*")
 
     # ── T3 Client-local ────────────────────────────────────────────
     lines.append("\n## Client-local Tools (T3) — call directly from root\n")
     if data["t3"]:
         for e in data["t3"]:
-            lines.append(
-                f"- **{e['tool']}** [{e.get('client_type', '')}]: {e['description']}"
-            )
+            lines.append(f"- **{e['tool']}** [{e.get('client_type', '')}]: {e['description']}")
     else:
         lines.append("*(No client-local tools — desktop/chrome not connected)*")
 
@@ -458,7 +453,9 @@ def _get_tier1_schemas() -> str:
             tools_out.append(
                 {"name": name, "description": desc, "parameters": params, "capability_tag": cap}
             )
-    return json.dumps({"tier": "T1", "description": "Core built-in tools", "tools": tools_out}, indent=2)
+    return json.dumps(
+        {"tier": "T1", "description": "Core built-in tools", "tools": tools_out}, indent=2
+    )
 
 
 def _get_tier1_schemas_filtered(query: str) -> str:
@@ -508,8 +505,17 @@ def _get_tier2_schemas(user_id: str) -> str:
         else:
             summaries = manifest.tools_summary  # Native plugins: names match Python functions
         tools_list = [{"name": s.name, "description": s.description} for s in summaries]
-        if not tools_list and manifest.kind in (PluginKind.MCP_STDIO, PluginKind.MCP_HTTP, PluginKind.MCP_OAUTH):
-            tools_list = [{"name": "(not connected)", "description": f"{manifest.name} is enabled but not yet connected. Complete authorization first."}]
+        if not tools_list and manifest.kind in (
+            PluginKind.MCP_STDIO,
+            PluginKind.MCP_HTTP,
+            PluginKind.MCP_OAUTH,
+        ):
+            tools_list = [
+                {
+                    "name": "(not connected)",
+                    "description": f"{manifest.name} is enabled but not yet connected. Complete authorization first.",
+                }
+            ]
         plugins_out.append(
             {
                 "plugin": manifest.name,

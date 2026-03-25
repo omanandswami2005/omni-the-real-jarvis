@@ -36,12 +36,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 # ── Load .env ──────────────────────────────────────────────────────────
 _env_file = Path(__file__).parent.parent / ".env"
@@ -102,8 +102,7 @@ def dim(t: str) -> str:
 # ══════════════════════════════════════════════════════════════════════
 
 FIREBASE_SIGN_IN_URL = (
-    "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-    f"?key={FIREBASE_API_KEY}"
+    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
 )
 
 
@@ -112,11 +111,7 @@ async def get_firebase_token() -> str:
     import httpx
 
     if not FIREBASE_API_KEY or not EMAIL or not PASSWORD:
-        print(
-            red(
-                "  Missing FIREBASE_WEB_API_KEY, TEST_USER_EMAIL, or TEST_USER_PASSWORD"
-            )
-        )
+        print(red("  Missing FIREBASE_WEB_API_KEY, TEST_USER_EMAIL, or TEST_USER_PASSWORD"))
         print(dim("  Set them in backend/.env or as environment variables"))
         sys.exit(1)
 
@@ -163,9 +158,7 @@ class ApiClient:
 
         for attempt in range(3):
             try:
-                async with httpx.AsyncClient(
-                    timeout=60, follow_redirects=True
-                ) as client:
+                async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
                     if method == "GET":
                         resp = await client.get(url, headers=self.headers, **kwargs)
                     else:
@@ -174,7 +167,7 @@ class ApiClient:
                         "status": resp.status_code,
                         "body": resp.json() if resp.status_code < 500 else {},
                     }
-            except Exception as e:
+            except Exception:
                 if attempt < 2:
                     await asyncio.sleep(2)
                 else:
@@ -226,7 +219,10 @@ class EventCollector:
                 raw = await asyncio.wait_for(ws.recv(), timeout=10)
                 data = json.loads(raw)
                 if data.get("status") == "ok":
-                    print(green("  WS: Connected to /ws/events") + dim(f"  (user: {data.get('user_id', '?')})"))
+                    print(
+                        green("  WS: Connected to /ws/events")
+                        + dim(f"  (user: {data.get('user_id', '?')})")
+                    )
                     self._connected.set()
                 else:
                     print(red(f"  WS: Auth failed: {data.get('error', '?')}"))
@@ -252,24 +248,18 @@ class EventCollector:
     async def stop(self):
         """Close the WebSocket and stop collecting."""
         if self._ws:
-            try:
+            with contextlib.suppress(Exception):
                 await self._ws.close()
-            except Exception:
-                pass
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._task
-            except (asyncio.CancelledError, Exception):
-                pass
 
     def get_events_for_task(self, task_id: str) -> list[dict]:
         """Get all events for a specific task."""
         result = []
         for e in self.events:
-            if e.get("task_id") == task_id:
-                result.append(e)
-            elif e.get("task", {}).get("id") == task_id:
+            if e.get("task_id") == task_id or e.get("task", {}).get("id") == task_id:
                 result.append(e)
         return result
 
@@ -353,9 +343,7 @@ class E2ETestRunner:
             print(dim("   Planned steps:"))
             for i, step in enumerate(steps, 1):
                 print(
-                    dim(
-                        f"     {i}. [{step.get('persona_id', '?')}] {step.get('title', '?')[:70]}"
-                    )
+                    dim(f"     {i}. [{step.get('persona_id', '?')}] {step.get('title', '?')[:70]}")
                 )
 
     async def test_detail(self):
@@ -503,7 +491,7 @@ class E2ETestRunner:
         # Check for key lifecycle events
         has_created = self.events.has_event(self.task_id, "task_created")
         has_planned = self.events.has_event(self.task_id, "task_planned")
-        has_step_update = self.events.has_event(self.task_id, "task_step_update")
+        self.events.has_event(self.task_id, "task_step_update")
         has_completed = self.events.has_event(
             self.task_id, "task_completed"
         ) or self.events.has_event(self.task_id, "task_updated")
@@ -564,7 +552,9 @@ class E2ETestRunner:
         # Check status
         await asyncio.sleep(1)
         status_resp = await self.api.get(f"/{tid}")
-        paused_status = status_resp["body"].get("status", "?") if status_resp["status"] == 200 else "?"
+        paused_status = (
+            status_resp["body"].get("status", "?") if status_resp["status"] == 200 else "?"
+        )
 
         # Resume
         print(dim("   Resuming ..."))
@@ -617,9 +607,7 @@ class E2ETestRunner:
         await asyncio.sleep(2)
         status_resp = await self.api.get(f"/{tid}")
         final_status = (
-            status_resp["body"].get("status", "?")
-            if status_resp["status"] == 200
-            else "?"
+            status_resp["body"].get("status", "?") if status_resp["status"] == 200 else "?"
         )
 
         self.record(
@@ -729,7 +717,7 @@ async def main():
     print(bold("═══════════════════════════════════════════════════════"))
     print(f"  Backend : {cyan(base_url)}")
     print(f"  API     : {dim(f'{base_url}/api/v1/tasks')}")
-    print(f"  WS      : {dim(f'{base_url.replace('http', 'ws')}/ws/events')}")
+    print(f"  WS      : {dim(f'{base_url.replace("http", "ws")}/ws/events')}")
 
     # Auth
     print(f"\n{bold('Auth')}")

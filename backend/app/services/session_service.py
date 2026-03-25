@@ -106,10 +106,15 @@ class SessionService:
         if session.adk_session_id:
             try:
                 from app.api.ws_live import _adk_session_id_cache
+
                 # Only clear the cache if it still points to this session's ADK ID
                 if _adk_session_id_cache.get(user_id) == session.adk_session_id:
                     _adk_session_id_cache.pop(user_id, None)
-                    logger.debug("adk_session_cache_cleared", user_id=user_id, adk_session_id=session.adk_session_id)
+                    logger.debug(
+                        "adk_session_cache_cleared",
+                        user_id=user_id,
+                        adk_session_id=session.adk_session_id,
+                    )
             except ImportError:
                 pass
 
@@ -188,13 +193,15 @@ async def _generate_title(user_message: str) -> str:
     """Call Gemini to produce a concise session title (≤6 words)."""
     from google import genai
 
-    client = genai.Client(vertexai=settings.GOOGLE_GENAI_USE_VERTEXAI,
-                          project=settings.GOOGLE_CLOUD_PROJECT,
-                          location=settings.GOOGLE_CLOUD_LOCATION)
+    client = genai.Client(
+        vertexai=settings.GOOGLE_GENAI_USE_VERTEXAI,
+        project=settings.GOOGLE_CLOUD_PROJECT,
+        location=settings.GOOGLE_CLOUD_LOCATION,
+    )
     response = await asyncio.to_thread(
         client.models.generate_content,
         model=settings.TEXT_MODEL,
-        contents=f"Generate a short title (max 6 words, no quotes) summarising this user message for a chat session:\n\n\"{user_message}\"",
+        contents=f'Generate a short title (max 6 words, no quotes) summarising this user message for a chat session:\n\n"{user_message}"',
     )
     title = (getattr(response, "text", None) or "").strip().strip('"').strip("'")
     return title[:60] if title else ""

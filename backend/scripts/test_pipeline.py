@@ -39,7 +39,7 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
 # Load .env before any app imports
-from dotenv import load_dotenv  # noqa: E402
+from dotenv import load_dotenv
 
 load_dotenv(BACKEND / ".env")
 
@@ -81,14 +81,14 @@ def _print_event(event: dict) -> None:
     etype = event.get("type", "?")
     if etype == "pipeline_created":
         pipeline = event["pipeline"]
-        print(f"\n  {'='*50}")
+        print(f"\n  {'=' * 50}")
         print(f"  Pipeline created: {pipeline['pipeline_id']}")
         print(f"  Task: {pipeline['task_description'][:80]}")
         print(f"  Stages: {len(pipeline['stages'])}  |  Total agents: {pipeline['total_agents']}")
         for stage in pipeline["stages"]:
             task_ids = [t["persona_id"] for t in stage["tasks"]]
             print(f"    [{stage['stage_type']}] {stage['name']} -> {', '.join(task_ids)}")
-        print(f"  {'='*50}\n")
+        print(f"  {'=' * 50}\n")
     elif etype == "pipeline_progress":
         status = event.get("status", "?")
         stage = event.get("stage", "?")
@@ -105,9 +105,9 @@ async def run_decompose(task: str) -> None:
     """Decompose a task and print the blueprint (no execution)."""
     from app.agents.task_architect import TaskArchitect
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  TaskArchitect — Decompose Only")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Task: {task[:100]}")
     print()
 
@@ -123,25 +123,23 @@ async def run_decompose(task: str) -> None:
     print()
     print("  Blueprint JSON:")
     print(json.dumps(blueprint.to_dict(), indent=2))
-    print(f"\n{'='*60}\n")
+    print(f"\n{'=' * 60}\n")
 
 
 async def run_full_pipeline(task: str) -> None:
     """Decompose, build, and execute a pipeline with live events."""
     from app.agents.task_architect import TaskArchitect
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  TaskArchitect — Full Pipeline Execution")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Task: {task[:100]}")
     print(f"  User: {TEST_USER_ID}")
     print()
 
     # Start event listener in background
     stop_event = asyncio.Event()
-    listener_task = asyncio.create_task(
-        _event_listener(TEST_USER_ID, stop_event)
-    )
+    listener_task = asyncio.create_task(_event_listener(TEST_USER_ID, stop_event))
 
     t0 = time.monotonic()
 
@@ -150,7 +148,9 @@ async def run_full_pipeline(task: str) -> None:
     architect = TaskArchitect(user_id=TEST_USER_ID)
     blueprint = await architect.analyse_task(task)
     t_decompose = time.monotonic() - t0
-    print(f"         Done ({t_decompose:.1f}s) — {len(blueprint.stages)} stages, {blueprint.total_agents} agents\n")
+    print(
+        f"         Done ({t_decompose:.1f}s) — {len(blueprint.stages)} stages, {blueprint.total_agents} agents\n"
+    )
 
     # Publish blueprint (this triggers pipeline_created event)
     await architect.publish_blueprint(blueprint)
@@ -174,16 +174,16 @@ async def run_full_pipeline(task: str) -> None:
     events = listener_task.result() if listener_task.done() else []
 
     # Print results
-    print(f"\n  {'='*50}")
+    print(f"\n  {'=' * 50}")
     print("  EXECUTION RESULTS")
-    print(f"  {'='*50}")
+    print(f"  {'=' * 50}")
     print(f"  Decomposition time: {t_decompose:.1f}s")
     print(f"  Execution time:     {t_exec:.1f}s")
     print(f"  Total time:         {time.monotonic() - t0:.1f}s")
     print(f"  Events captured:    {len(events)}")
     print("\n  --- Summary (first 2000 chars) ---")
     print(f"  {summary[:2000]}")
-    print(f"\n  {'='*50}\n")
+    print(f"\n  {'=' * 50}\n")
 
 
 def main():

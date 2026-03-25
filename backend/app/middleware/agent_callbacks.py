@@ -300,14 +300,17 @@ def tool_activity_before_callback(
     user_id = state.get("user_id")
     agent_name = getattr(ctx, "agent_name", "unknown")
     if user_id:
-        _publish_tool_event(user_id, {
-            "type": "tool_activity",
-            "event": "started",
-            "tool_name": tool_name,
-            "agent": agent_name,
-            "args_preview": _safe_args_preview(args),
-            "timestamp": time.time(),
-        })
+        _publish_tool_event(
+            user_id,
+            {
+                "type": "tool_activity",
+                "event": "started",
+                "tool_name": tool_name,
+                "agent": agent_name,
+                "args_preview": _safe_args_preview(args),
+                "timestamp": time.time(),
+            },
+        )
 
     # Delegate to permission check
     return permission_check_callback(tool=tool, args=args, tool_context=ctx, **kwargs)
@@ -337,16 +340,19 @@ def tool_activity_after_callback(
     user_id = state.get("user_id")
     agent_name = getattr(ctx, "agent_name", "unknown")
     if user_id:
-        _publish_tool_event(user_id, {
-            "type": "tool_activity",
-            "event": "completed",
-            "tool_name": tool_name,
-            "agent": agent_name,
-            "elapsed_s": elapsed,
-            "success": not is_error,
-            "result_preview": _safe_result_preview(tool_response),
-            "timestamp": time.time(),
-        })
+        _publish_tool_event(
+            user_id,
+            {
+                "type": "tool_activity",
+                "event": "completed",
+                "tool_name": tool_name,
+                "agent": agent_name,
+                "elapsed_s": elapsed,
+                "success": not is_error,
+                "result_preview": _safe_result_preview(tool_response),
+                "timestamp": time.time(),
+            },
+        )
 
     logger.info(
         "tool_completed",

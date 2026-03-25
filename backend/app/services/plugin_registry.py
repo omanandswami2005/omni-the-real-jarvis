@@ -175,7 +175,8 @@ class PluginRegistry:
             enabled = self._user_enabled.get(user_id, {})
             enabled_ids = [pid for pid, on in enabled.items() if on]
             db.collection(self._ENABLED_COLLECTION).document(user_id).set(
-                {"enabled_ids": enabled_ids}, merge=True,
+                {"enabled_ids": enabled_ids},
+                merge=True,
             )
         except Exception:
             logger.warning("persist_enabled_failed", user_id=user_id, exc_info=True)
@@ -503,8 +504,7 @@ class PluginRegistry:
             self._user_enabled.setdefault(user_id, {}).pop(plugin_id, None)
             self._persist_enabled(user_id)
             self._errors[key] = (
-                "OAuth token expired or revoked. "
-                "Please reconnect from the Integrations page."
+                "OAuth token expired or revoked. Please reconnect from the Integrations page."
             )
             logger.warning(
                 "mcp_oauth_no_valid_token",
@@ -732,7 +732,11 @@ class PluginRegistry:
                 continue
             # Only use discovered summaries (verified names) — never guessed manifest names
             summaries = self._discovered_summaries.get(plugin_id)
-            if summaries is None and manifest.kind in (PluginKind.MCP_STDIO, PluginKind.MCP_HTTP, PluginKind.MCP_OAUTH):
+            if summaries is None and manifest.kind in (
+                PluginKind.MCP_STDIO,
+                PluginKind.MCP_HTTP,
+                PluginKind.MCP_OAUTH,
+            ):
                 summaries = []  # MCP not connected — don't guess tool names
             elif summaries is None:
                 summaries = manifest.tools_summary  # Native plugins: names match Python functions

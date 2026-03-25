@@ -44,20 +44,19 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import base64
+import contextlib
 import json
 import os
 import sys
 import time
-import traceback
 from pathlib import Path
-from typing import Any
 
 # ── Load .env from backend root ───────────────────────────────────────
 _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file, override=False)
     except ImportError:
         for _line in _env_file.read_text().splitlines():
@@ -77,8 +76,7 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://[::1]:8000")
 API_BASE = f"{BACKEND_URL}/api/v1"
 DESKTOP_URL = f"{API_BASE}/tasks/desktop"
 FIREBASE_SIGN_IN_URL = (
-    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-    f"?key={FIREBASE_API_KEY}"
+    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
 )
 
 TEST_USER = "e2b_test_user"
@@ -91,17 +89,34 @@ def _c(code: str, text: str) -> str:
     return f"{code}{text}\033[0m" if USE_COLOR else text
 
 
-def green(t: str) -> str: return _c("\033[92m", t)
-def red(t: str) -> str:   return _c("\033[91m", t)
-def yellow(t: str) -> str:return _c("\033[93m", t)
-def cyan(t: str) -> str:  return _c("\033[96m", t)
-def bold(t: str) -> str:  return _c("\033[1m", t)
-def dim(t: str) -> str:   return _c("\033[2m", t)
+def green(t: str) -> str:
+    return _c("\033[92m", t)
+
+
+def red(t: str) -> str:
+    return _c("\033[91m", t)
+
+
+def yellow(t: str) -> str:
+    return _c("\033[93m", t)
+
+
+def cyan(t: str) -> str:
+    return _c("\033[96m", t)
+
+
+def bold(t: str) -> str:
+    return _c("\033[1m", t)
+
+
+def dim(t: str) -> str:
+    return _c("\033[2m", t)
 
 
 # ══════════════════════════════════════════════════════════════════════
 # Result Tracking
 # ══════════════════════════════════════════════════════════════════════
+
 
 class TestResults:
     def __init__(self):
@@ -124,13 +139,14 @@ class TestResults:
 # DIRECT MODE — Tests E2BDesktopService directly
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def run_direct_tests() -> TestResults:
     """Run tests by importing and calling E2BDesktopService directly."""
     print(bold("\n╔══════════════════════════════════════════════╗"))
     print(bold("║  E2B Desktop — Direct Service Tests          ║"))
     print(bold("╚══════════════════════════════════════════════╝"))
 
-    from app.services.e2b_desktop_service import E2BDesktopService, DesktopStatus
+    from app.services.e2b_desktop_service import DesktopStatus, E2BDesktopService
 
     svc = E2BDesktopService()
     results = TestResults()
@@ -146,13 +162,13 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "Create desktop",
             info.status in (DesktopStatus.READY, DesktopStatus.STREAMING),
-            f"status={info.status.value}, sandbox_id={info.sandbox_id}, elapsed={elapsed}s"
+            f"status={info.status.value}, sandbox_id={info.sandbox_id}, elapsed={elapsed}s",
         )
         if info.stream_url:
             print(dim(f"           Stream URL: {info.stream_url[:120]}"))
     except Exception as e:
         results.record("Create desktop", False, f"Exception: {e}")
-        print(red(f"\n  Cannot continue without a desktop. Aborting direct tests."))
+        print(red("\n  Cannot continue without a desktop. Aborting direct tests."))
         return results
 
     # ── Test 2: Get Status ──
@@ -162,7 +178,7 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "Get status",
             fetched is not None and fetched.status != DesktopStatus.DESTROYED,
-            f"status={fetched.status.value if fetched else 'None'}"
+            f"status={fetched.status.value if fetched else 'None'}",
         )
     except Exception as e:
         results.record("Get status", False, str(e))
@@ -174,7 +190,7 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "Idempotent create",
             info2.sandbox_id == info.sandbox_id,
-            f"same_sandbox={info2.sandbox_id == info.sandbox_id}"
+            f"same_sandbox={info2.sandbox_id == info.sandbox_id}",
         )
     except Exception as e:
         results.record("Idempotent create", False, str(e))
@@ -184,11 +200,11 @@ async def run_direct_tests() -> TestResults:
     await asyncio.sleep(3)  # Let desktop fully render
     try:
         img_bytes = await svc.screenshot(user)
-        is_png = img_bytes[:4] == b'\x89PNG'
+        is_png = img_bytes[:4] == b"\x89PNG"
         results.record(
             "Screenshot capture",
             len(img_bytes) > 100 and is_png,
-            f"size={len(img_bytes)} bytes, is_png={is_png}"
+            f"size={len(img_bytes)} bytes, is_png={is_png}",
         )
     except Exception as e:
         results.record("Screenshot capture", False, str(e))
@@ -250,7 +266,7 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "Shell echo",
             "Hello from E2B!" in stdout,
-            f"stdout='{stdout}', exit_code={result.get('exit_code')}"
+            f"stdout='{stdout}', exit_code={result.get('exit_code')}",
         )
     except Exception as e:
         results.record("Shell echo", False, str(e))
@@ -263,7 +279,7 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "System info",
             len(stdout) > 10 and result.get("exit_code") == 0,
-            f"output={stdout[:100]}"
+            f"output={stdout[:100]}",
         )
     except Exception as e:
         results.record("System info", False, str(e))
@@ -271,12 +287,14 @@ async def run_direct_tests() -> TestResults:
     # ── Test 13: Shell — Python Available ──
     print(f"\n  {bold('13. Shell — Python Execution')}")
     try:
-        result = await svc.run_command(user, "python3 -c \"import sys; print(f'Python {sys.version}')\"")
+        result = await svc.run_command(
+            user, "python3 -c \"import sys; print(f'Python {sys.version}')\""
+        )
         stdout = result.get("stdout", "").strip()
         results.record(
             "Python available",
             "Python" in stdout and result.get("exit_code") == 0,
-            f"output={stdout[:80]}"
+            f"output={stdout[:80]}",
         )
     except Exception as e:
         results.record("Python available", False, str(e))
@@ -290,9 +308,7 @@ async def run_direct_tests() -> TestResults:
         result = await svc.run_command(user, "cat /tmp/e2b_test.txt")
         stdout = result.get("stdout", "").strip()
         results.record(
-            "Shell file create+read",
-            "E2B test content 12345" in stdout,
-            f"content='{stdout}'"
+            "Shell file create+read", "E2B test content 12345" in stdout, f"content='{stdout}'"
         )
     except Exception as e:
         results.record("Shell file create+read", False, str(e))
@@ -302,11 +318,7 @@ async def run_direct_tests() -> TestResults:
     test_content = b"This is uploaded via E2B SDK test. Random: 98765"
     try:
         path = await svc.upload_file(user, "/home/user/uploaded_test.txt", test_content)
-        results.record(
-            "File upload",
-            path == "/home/user/uploaded_test.txt",
-            f"path={path}"
-        )
+        results.record("File upload", path == "/home/user/uploaded_test.txt", f"path={path}")
     except Exception as e:
         results.record("File upload", False, str(e))
 
@@ -318,7 +330,7 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "File download + verify",
             content_match,
-            f"size={len(downloaded)}, match={content_match}"
+            f"size={len(downloaded)}, match={content_match}",
         )
     except Exception as e:
         results.record("File download + verify", False, str(e))
@@ -355,7 +367,7 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "List windows",
             isinstance(windows, list),
-            f"count={len(windows)}, windows={json.dumps(windows[:3]) if windows else '[]'}"
+            f"count={len(windows)}, windows={json.dumps(windows[:3]) if windows else '[]'}",
         )
     except Exception as e:
         results.record("List windows", False, str(e))
@@ -374,11 +386,9 @@ async def run_direct_tests() -> TestResults:
     await asyncio.sleep(2)  # Let browser render
     try:
         img2 = await svc.screenshot(user)
-        is_png = img2[:4] == b'\x89PNG'
+        is_png = img2[:4] == b"\x89PNG"
         results.record(
-            "Screenshot after actions",
-            len(img2) > 100 and is_png,
-            f"size={len(img2)} bytes"
+            "Screenshot after actions", len(img2) > 100 and is_png, f"size={len(img2)} bytes"
         )
     except Exception as e:
         results.record("Screenshot after actions", False, str(e))
@@ -387,11 +397,11 @@ async def run_direct_tests() -> TestResults:
     print(f"\n  {bold('23. Shell — Multi-step Python Script')}")
     try:
         script = (
-            "python3 -c \""
+            'python3 -c "'
             "import json; "
             "data = {'numbers': list(range(10)), 'sum': sum(range(10))}; "
             "print(json.dumps(data))"
-            "\""
+            '"'
         )
         result = await svc.run_command(user, script)
         stdout = result.get("stdout", "").strip()
@@ -399,7 +409,7 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "Python script execution",
             parsed.get("sum") == 45 and len(parsed.get("numbers", [])) == 10,
-            f"sum={parsed.get('sum')}, numbers_count={len(parsed.get('numbers', []))}"
+            f"sum={parsed.get('sum')}, numbers_count={len(parsed.get('numbers', []))}",
         )
     except Exception as e:
         results.record("Python script execution", False, str(e))
@@ -410,11 +420,13 @@ async def run_direct_tests() -> TestResults:
         result = await svc.run_command(user, "pip install cowsay 2>&1 | tail -1", timeout=30)
         stdout = result.get("stdout", "").strip()
         # Verify installed
-        verify = await svc.run_command(user, "python3 -c \"import cowsay; print('cowsay imported OK')\"")
+        verify = await svc.run_command(
+            user, "python3 -c \"import cowsay; print('cowsay imported OK')\""
+        )
         results.record(
             "Pip install cowsay",
             "cowsay imported OK" in verify.get("stdout", ""),
-            f"install_output='{stdout}', verify='{verify.get('stdout', '').strip()}'"
+            f"install_output='{stdout}', verify='{verify.get('stdout', '').strip()}'",
         )
     except Exception as e:
         results.record("Pip install", False, str(e))
@@ -428,7 +440,7 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "Binary file roundtrip",
             downloaded == binary_content,
-            f"uploaded={len(binary_content)} bytes, downloaded={len(downloaded)} bytes, match={downloaded == binary_content}"
+            f"uploaded={len(binary_content)} bytes, downloaded={len(downloaded)} bytes, match={downloaded == binary_content}",
         )
     except Exception as e:
         results.record("Binary file roundtrip", False, str(e))
@@ -448,7 +460,7 @@ async def run_direct_tests() -> TestResults:
         results.record(
             "Cleanup verified",
             info_after is None,
-            f"info_after={'None' if info_after is None else info_after.status.value}"
+            f"info_after={'None' if info_after is None else info_after.status.value}",
         )
     except Exception as e:
         results.record("Cleanup verified", False, str(e))
@@ -459,25 +471,24 @@ async def run_direct_tests() -> TestResults:
         info3 = await svc.create_desktop(user, timeout=300)
         results.record(
             "Re-create after destroy",
-            info3.status in (DesktopStatus.READY, DesktopStatus.STREAMING) and info3.sandbox_id != info.sandbox_id,
-            f"new_sandbox={info3.sandbox_id}, old_sandbox={info.sandbox_id}"
+            info3.status in (DesktopStatus.READY, DesktopStatus.STREAMING)
+            and info3.sandbox_id != info.sandbox_id,
+            f"new_sandbox={info3.sandbox_id}, old_sandbox={info.sandbox_id}",
         )
         # Verify it works
         echo_result = await svc.run_command(user, "echo 'fresh sandbox'")
         results.record(
             "Fresh sandbox functional",
             "fresh sandbox" in echo_result.get("stdout", ""),
-            f"stdout='{echo_result.get('stdout', '').strip()}'"
+            f"stdout='{echo_result.get('stdout', '').strip()}'",
         )
     except Exception as e:
         results.record("Re-create after destroy", False, str(e))
 
     # ── Final Cleanup ──
     print(dim("\n     Cleaning up ..."))
-    try:
+    with contextlib.suppress(Exception):
         await svc.destroy_all()
-    except Exception:
-        pass
 
     return results
 
@@ -486,9 +497,11 @@ async def run_direct_tests() -> TestResults:
 # API MODE — Tests via REST endpoints (requires running server)
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def get_firebase_token() -> str:
     """Sign in with email+password via Firebase Auth REST API."""
     import httpx
+
     if not FIREBASE_API_KEY or not EMAIL or not PASSWORD:
         print(red("    Missing FIREBASE_WEB_API_KEY, TEST_USER_EMAIL, or TEST_USER_PASSWORD"))
         print(dim("    Set them in backend/.env or as environment variables"))
@@ -529,19 +542,25 @@ async def run_api_tests() -> TestResults:
     async def api_get(path: str) -> dict:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(f"{DESKTOP_URL}{path}", headers=headers)
-            return {"status": resp.status_code, "body": resp.json() if resp.status_code < 500 else {"error": resp.text}}
+            return {
+                "status": resp.status_code,
+                "body": resp.json() if resp.status_code < 500 else {"error": resp.text},
+            }
 
     async def api_post(path: str, data: dict | None = None) -> dict:
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(f"{DESKTOP_URL}{path}", headers=headers, json=data or {})
-            return {"status": resp.status_code, "body": resp.json() if resp.status_code < 500 else {"error": resp.text}}
+            return {
+                "status": resp.status_code,
+                "body": resp.json() if resp.status_code < 500 else {"error": resp.text},
+            }
 
     # ── Smoke check ──
     print(f"\n  {bold('Smoke Check')}")
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(f"{BACKEND_URL}/api/v1/health")
-            print(green(f"    Backend reachable") + dim(f" ({r.status_code})"))
+            print(green("    Backend reachable") + dim(f" ({r.status_code})"))
     except Exception as e:
         print(red(f"    Backend unreachable: {e}"))
         return results
@@ -552,7 +571,7 @@ async def run_api_tests() -> TestResults:
     results.record(
         "Initial status (no desktop)",
         resp["status"] == 200,
-        f"HTTP {resp['status']}, body={json.dumps(resp['body'])[:100]}"
+        f"HTTP {resp['status']}, body={json.dumps(resp['body'])[:100]}",
     )
 
     # ── Test 2: Start Desktop ──
@@ -569,7 +588,7 @@ async def run_api_tests() -> TestResults:
             "Start desktop via API",
             True,
             f"status={body.get('status')}, sandbox_id={body.get('sandbox_id', '?')}, "
-            f"stream={'yes' if body.get('stream_url') else 'no'}, elapsed={elapsed}s"
+            f"stream={'yes' if body.get('stream_url') else 'no'}, elapsed={elapsed}s",
         )
         if body.get("stream_url"):
             print(dim(f"           Stream: {body['stream_url'][:120]}"))
@@ -585,18 +604,22 @@ async def run_api_tests() -> TestResults:
     results.record(
         "Desktop is active",
         status_val in ("ready", "streaming", "idle", "working"),
-        f"status={status_val}"
+        f"status={status_val}",
     )
 
     # ── Test 4: Double Start (idempotent) ──
     print(f"\n  {bold('4. Idempotent Start (same sandbox)')}")
     resp2 = await api_post("/start")
     if resp2["status"] in (200, 201):
-        same_id = resp2["body"].get("sandbox_id") == resp["body"].get("sandbox_id") if resp["status"] == 200 else False
+        same_id = (
+            resp2["body"].get("sandbox_id") == resp["body"].get("sandbox_id")
+            if resp["status"] == 200
+            else False
+        )
         results.record(
             "Idempotent start returns same sandbox",
             resp2["status"] in (200, 201),
-            f"same_sandbox_id={same_id}"
+            f"same_sandbox_id={same_id}",
         )
     else:
         results.record("Idempotent start", False, f"HTTP {resp2['status']}")
@@ -605,9 +628,7 @@ async def run_api_tests() -> TestResults:
     print(f"\n  {bold('5. Stop Desktop')}")
     resp = await api_post("/stop")
     results.record(
-        "Stop desktop",
-        resp["status"] in (200, 204),
-        f"HTTP {resp['status']}, body={resp['body']}"
+        "Stop desktop", resp["status"] in (200, 204), f"HTTP {resp['status']}, body={resp['body']}"
     )
 
     # ── Test 6: Status After Stop ──
@@ -618,28 +639,27 @@ async def run_api_tests() -> TestResults:
     results.record(
         "Status after stop (none/destroyed)",
         status_val in ("none", "destroyed", "no_desktop"),
-        f"status={status_val}"
+        f"status={status_val}",
     )
 
     # ── Test 7: Re-start Desktop ──
     print(f"\n  {bold('7. Restart Desktop')}")
     print(dim("     Provisioning fresh sandbox ..."))
     resp = await api_post("/start")
-    restarted = resp["status"] in (200, 201) and resp["body"].get("status") in ("ready", "streaming")
+    restarted = resp["status"] in (200, 201) and resp["body"].get("status") in (
+        "ready",
+        "streaming",
+    )
     results.record(
         "Restart desktop",
         restarted,
-        f"status={resp['body'].get('status', '?')}, sandbox_id={resp['body'].get('sandbox_id', '?')}"
+        f"status={resp['body'].get('status', '?')}, sandbox_id={resp['body'].get('sandbox_id', '?')}",
     )
 
     # ── Test 8: Final Stop ──
     print(f"\n  {bold('8. Final Stop + Cleanup')}")
     resp = await api_post("/stop")
-    results.record(
-        "Final stop",
-        resp["status"] in (200, 204),
-        f"HTTP {resp['status']}"
-    )
+    results.record("Final stop", resp["status"] in (200, 204), f"HTTP {resp['status']}")
 
     return results
 
@@ -648,10 +668,15 @@ async def run_api_tests() -> TestResults:
 # Main
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def main():
     parser = argparse.ArgumentParser(description="E2B Desktop Comprehensive E2E Test")
-    parser.add_argument("--mode", choices=["direct", "api", "both"], default="direct",
-                        help="Test mode: direct (service-level), api (REST), or both")
+    parser.add_argument(
+        "--mode",
+        choices=["direct", "api", "both"],
+        default="direct",
+        help="Test mode: direct (service-level), api (REST), or both",
+    )
     parser.add_argument("--base-url", type=str, help="Backend base URL override")
     args = parser.parse_args()
 
@@ -684,9 +709,11 @@ async def main():
     total = total_passed + total_failed
 
     print(bold("\n═══════════════════════════════════════════════════"))
-    print(f"  Grand Total: {green(f'{total_passed} passed')}  "
-          f"{red(f'{total_failed} failed') if total_failed else ''}"
-          f"  ({total} tests)")
+    print(
+        f"  Grand Total: {green(f'{total_passed} passed')}  "
+        f"{red(f'{total_failed} failed') if total_failed else ''}"
+        f"  ({total} tests)"
+    )
     print(bold("═══════════════════════════════════════════════════\n"))
 
     if total_failed:

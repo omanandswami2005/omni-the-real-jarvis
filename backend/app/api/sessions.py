@@ -21,7 +21,7 @@ router = APIRouter()
 async def create_session(
     body: SessionCreate,
     user: CurrentUser,
-    svc: SessionService = Depends(get_session_service),  # noqa: B008
+    svc: SessionService = Depends(get_session_service),
 ) -> SessionResponse:
     """Create a new conversation session."""
     return await svc.create_session(user.uid, body)
@@ -30,7 +30,7 @@ async def create_session(
 @router.get("")
 async def list_sessions(
     user: CurrentUser,
-    svc: SessionService = Depends(get_session_service),  # noqa: B008
+    svc: SessionService = Depends(get_session_service),
 ) -> list[SessionListItem]:
     """List all sessions for the current user (newest first)."""
     return await svc.list_sessions(user.uid)
@@ -40,7 +40,7 @@ async def list_sessions(
 async def get_session(
     session_id: str,
     user: CurrentUser,
-    svc: SessionService = Depends(get_session_service),  # noqa: B008
+    svc: SessionService = Depends(get_session_service),
 ) -> SessionResponse:
     """Get a single session by ID."""
     return await svc.get_session(user.uid, session_id)
@@ -50,7 +50,7 @@ async def get_session(
 async def list_messages(
     session_id: str,
     user: CurrentUser,
-    svc: SessionService = Depends(get_session_service),  # noqa: B008
+    svc: SessionService = Depends(get_session_service),
 ) -> list[ChatMessage]:
     """Return chat messages by reading ADK session events.
 
@@ -110,6 +110,7 @@ async def _gcs_uri_to_https(gcs_uri: str) -> str:
     import asyncio as _asyncio
 
     from app.services.storage_service import get_storage_service
+
     # gs://bucket-name/path/to/file  →  path/to/file
     parts = gcs_uri[5:].split("/", 1)  # strip "gs://"
     bucket = parts[0]
@@ -268,7 +269,13 @@ async def _events_to_messages(events: list) -> list[ChatMessage]:
                     for ip in raw_image_parts:
                         url = await _gcs_uri_to_https(ip.get("gcs_uri", ""))
                         if url:
-                            parts.append({"type": "image", "image_url": url, "mime_type": ip.get("mime_type", "image/png")})
+                            parts.append(
+                                {
+                                    "type": "image",
+                                    "image_url": url,
+                                    "mime_type": ip.get("mime_type", "image/png"),
+                                }
+                            )
                     messages.append(
                         ChatMessage(
                             role="assistant",
@@ -307,11 +314,7 @@ async def _events_to_messages(events: list) -> list[ChatMessage]:
                 merged = False
                 for i in range(len(messages) - 1, -1, -1):
                     m = messages[i]
-                    if (
-                        m.type == "action"
-                        and m.tool_name == fr.name
-                        and not m.responded
-                    ):
+                    if m.type == "action" and m.tool_name == fr.name and not m.responded:
                         m.result = result_str
                         m.success = True
                         m.responded = True
@@ -345,7 +348,9 @@ async def _events_to_messages(events: list) -> list[ChatMessage]:
             _genui_raw = _delta.get("_genui_results")
             if _genui_raw:
                 try:
-                    _genui_list = _json.loads(_genui_raw) if isinstance(_genui_raw, str) else _genui_raw
+                    _genui_list = (
+                        _json.loads(_genui_raw) if isinstance(_genui_raw, str) else _genui_raw
+                    )
                     if isinstance(_genui_list, list):
                         for gi in _genui_list:
                             messages.append(
@@ -378,7 +383,13 @@ async def _events_to_messages(events: list) -> list[ChatMessage]:
                                         converted_parts.append(rp)
                                     elif rp.get("type") == "image":
                                         url = await _gcs_uri_to_https(rp.get("image_url", ""))
-                                        converted_parts.append({"type": "image", "image_url": url, "mime_type": rp.get("mime_type", "image/png")})
+                                        converted_parts.append(
+                                            {
+                                                "type": "image",
+                                                "image_url": url,
+                                                "mime_type": rp.get("mime_type", "image/png"),
+                                            }
+                                        )
                                 messages.append(
                                     ChatMessage(
                                         role="assistant",
@@ -413,7 +424,7 @@ async def update_session(
     session_id: str,
     body: SessionUpdate,
     user: CurrentUser,
-    svc: SessionService = Depends(get_session_service),  # noqa: B008
+    svc: SessionService = Depends(get_session_service),
 ) -> SessionResponse:
     """Update session metadata (title, persona, message count)."""
     return await svc.update_session(user.uid, session_id, body)
@@ -423,7 +434,7 @@ async def update_session(
 async def delete_session(
     session_id: str,
     user: CurrentUser,
-    svc: SessionService = Depends(get_session_service),  # noqa: B008
+    svc: SessionService = Depends(get_session_service),
 ) -> None:
     """Delete a session (user-scoped)."""
     await svc.delete_session(user.uid, session_id)

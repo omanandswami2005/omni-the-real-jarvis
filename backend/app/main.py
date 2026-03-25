@@ -4,7 +4,7 @@ import os
 import threading
 import time
 from collections.abc import Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -116,10 +116,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown — stop local cron + reaper + close MCP/plugin connections
     if _scheduler_svc:
-        try:
+        with suppress(Exception):
             await _scheduler_svc.stop_local_cron()
-        except Exception:
-            pass
     mgr.stop_reaper()
     try:
         from app.services.plugin_registry import get_plugin_registry

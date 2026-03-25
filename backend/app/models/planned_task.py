@@ -19,11 +19,11 @@ from pydantic import BaseModel, Field
 class TaskStatus(StrEnum):
     """Lifecycle states for a PlannedTask."""
 
-    PENDING = "pending"           # Created, not yet planned
-    PLANNING = "planning"         # LLM is decomposing into steps
+    PENDING = "pending"  # Created, not yet planned
+    PLANNING = "planning"  # LLM is decomposing into steps
     AWAITING_CONFIRMATION = "awaiting_confirmation"  # Plan ready, needs user OK
-    RUNNING = "running"           # Actively executing steps
-    PAUSED = "paused"             # User paused or waiting for human input
+    RUNNING = "running"  # Actively executing steps
+    PAUSED = "paused"  # User paused or waiting for human input
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -44,9 +44,9 @@ class InputType(StrEnum):
     """Kinds of human-in-the-loop input requests."""
 
     CONFIRMATION = "confirmation"  # Yes/No
-    CHOICE = "choice"              # Multiple choice
-    TEXT = "text"                   # Free-form text
-    FILE = "file"                  # File upload
+    CHOICE = "choice"  # Multiple choice
+    TEXT = "text"  # Free-form text
+    FILE = "file"  # File upload
 
 
 class InputStatus(StrEnum):

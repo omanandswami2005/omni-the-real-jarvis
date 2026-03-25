@@ -47,6 +47,7 @@ _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file, override=False)
     except ImportError:
         # dotenv not available — fall back to manual parse (no dependencies)
@@ -65,8 +66,7 @@ PASSWORD = os.environ["TEST_USER_PASSWORD"]
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 WS_URL = os.getenv("WS_URL", "ws://localhost:8000/ws/chat")
 FIREBASE_SIGN_IN_URL = (
-    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-    f"?key={FIREBASE_API_KEY}"
+    f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
 )
 
 # ── Colours ────────────────────────────────────────────────────────────
@@ -79,13 +79,32 @@ def _c(code: str, text: str) -> str:
     return f"{code}{text}\033[0m"
 
 
-def green(t: str) -> str: return _c("\033[92m", t)
-def red(t: str) -> str:   return _c("\033[91m", t)
-def yellow(t: str) -> str:return _c("\033[93m", t)
-def cyan(t: str) -> str:  return _c("\033[96m", t)
-def blue(t: str) -> str:  return _c("\033[94m", t)
-def bold(t: str) -> str:  return _c("\033[1m", t)
-def dim(t: str) -> str:   return _c("\033[2m", t)
+def green(t: str) -> str:
+    return _c("\033[92m", t)
+
+
+def red(t: str) -> str:
+    return _c("\033[91m", t)
+
+
+def yellow(t: str) -> str:
+    return _c("\033[93m", t)
+
+
+def cyan(t: str) -> str:
+    return _c("\033[96m", t)
+
+
+def blue(t: str) -> str:
+    return _c("\033[94m", t)
+
+
+def bold(t: str) -> str:
+    return _c("\033[1m", t)
+
+
+def dim(t: str) -> str:
+    return _c("\033[2m", t)
 
 
 # ── Test definitions ──────────────────────────────────────────────────
@@ -139,9 +158,7 @@ TESTS: list[dict[str, Any]] = [
         "id": "mcp_fs",
         "name": "Filesystem MCP Server",
         "desc": "T2 plugin: filesystem via mcp_stdio server",
-        "prompt": (
-            "Using the filesystem tool, list the files in the current working directory."
-        ),
+        "prompt": ("Using the filesystem tool, list the files in the current working directory."),
         "requires_plugin": "filesystem",
     },
     {
@@ -176,15 +193,13 @@ TESTS: list[dict[str, Any]] = [
         "name": "Persona Switch",
         "desc": "Root agent routes to sub-persona agents",
         "persona_switch": "researcher",
-        "prompt": (
-            "Who are you and what are your specialties? "
-            "Introduce yourself in 2 sentences."
-        ),
+        "prompt": ("Who are you and what are your specialties? Introduce yourself in 2 sentences."),
     },
 ]
 
 
 # ── Firebase Auth ──────────────────────────────────────────────────────
+
 
 async def get_firebase_token() -> str:
     """Sign in with email+password via Firebase Auth REST API."""
@@ -213,6 +228,7 @@ async def get_firebase_token() -> str:
 
 
 # ── Plugin toggle ──────────────────────────────────────────────────────
+
 
 async def ensure_plugin_enabled(token: str, plugin_id: str) -> bool:
     """Enable a plugin via the REST API if not already enabled."""
@@ -258,6 +274,7 @@ async def ensure_plugin_enabled(token: str, plugin_id: str) -> bool:
 
 DONE_STATES = {"idle", "error"}
 
+
 async def collect_responses(ws, timeout: float = 45.0) -> list[dict]:
     """Receive messages until agent goes idle or timeout.
 
@@ -269,7 +286,7 @@ async def collect_responses(ws, timeout: float = 45.0) -> list[dict]:
     saw_transfer = False
     has_response_text = False
     pending_tools = 0  # tool_calls without matching tool_responses
-    idle_count = 0     # how many idle signals we've received
+    idle_count = 0  # how many idle signals we've received
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     try:
@@ -353,6 +370,7 @@ async def collect_responses(ws, timeout: float = 45.0) -> list[dict]:
 
 # ── Message printer ────────────────────────────────────────────────────
 
+
 def print_messages(messages: list[dict]) -> None:
     for msg in messages:
         t = msg.get("type", "?")
@@ -364,7 +382,9 @@ def print_messages(messages: list[dict]) -> None:
                 genui = msg.get("genui", {})
                 print(f"    {cyan('[GenUI]')} {json.dumps(genui, indent=None)[:200]}")
             elif text:
-                wrapped = textwrap.fill(text, width=90, initial_indent="    ", subsequent_indent="    ")
+                wrapped = textwrap.fill(
+                    text, width=90, initial_indent="    ", subsequent_indent="    "
+                )
                 print(f"    {green('[Agent]')} {wrapped}")
 
         elif t == "transcription":
@@ -391,7 +411,7 @@ def print_messages(messages: list[dict]) -> None:
 
         elif t == "image_response":
             has_b64 = bool(msg.get("image_base64"))
-            has_url = bool(msg.get("image_url"))
+            bool(msg.get("image_url"))
             mime = msg.get("mime_type", "?")
             desc = msg.get("description", "")
             parts = msg.get("parts", [])
@@ -425,8 +445,7 @@ def print_messages(messages: list[dict]) -> None:
 def grade_result(test: dict, messages: list[dict]) -> tuple[bool, str]:
     """Simple pass/fail heuristic for each test."""
     has_response = any(
-        m.get("type") == "response" and (m.get("data") or m.get("content"))
-        for m in messages
+        m.get("type") == "response" and (m.get("data") or m.get("content")) for m in messages
     )
     has_error = any(m.get("type") == "error" for m in messages)
 
@@ -435,9 +454,8 @@ def grade_result(test: dict, messages: list[dict]) -> tuple[bool, str]:
         return False, first_err.get("code", "error")
 
     expect_type = test.get("expect_type")
-    if expect_type:
-        if any(m.get("type") == expect_type for m in messages):
-            return True, "expected message type received"
+    if expect_type and any(m.get("type") == expect_type for m in messages):
+        return True, "expected message type received"
 
     expect_tool = test.get("expect_tool")
     if expect_tool:
@@ -454,6 +472,7 @@ def grade_result(test: dict, messages: list[dict]) -> tuple[bool, str]:
 
 
 # ── Main test runner ───────────────────────────────────────────────────
+
 
 async def run_tests(only: list[str] | None, force_persona: str | None) -> None:
     print()
@@ -486,7 +505,9 @@ async def run_tests(only: list[str] | None, force_persona: str | None) -> None:
     results: dict[str, tuple[bool, str]] = {}
 
     try:
-        async with websockets.connect(WS_URL, max_size=10 * 1024 * 1024, open_timeout=30, ping_interval=30, ping_timeout=60) as ws:
+        async with websockets.connect(
+            WS_URL, max_size=10 * 1024 * 1024, open_timeout=30, ping_interval=30, ping_timeout=60
+        ) as ws:
             # ── Auth handshake ──────────────────────────────────────
             auth_msg = {
                 "type": "auth",
@@ -512,7 +533,9 @@ async def run_tests(only: list[str] | None, force_persona: str | None) -> None:
             print(green("  WebSocket connected!"))
             print(f"  User ID  : {user_id}")
             print(f"  Session  : {session_id[:20]}...")
-            print(f"  Tools    : {len(tools)} available ({', '.join(tools[:6])}{'...' if len(tools)>6 else ''})")
+            print(
+                f"  Tools    : {len(tools)} available ({', '.join(tools[:6])}{'...' if len(tools) > 6 else ''})"
+            )
             if others:
                 print(f"  Clients  : {', '.join(others)} also online")
             print()
@@ -526,7 +549,7 @@ async def run_tests(only: list[str] | None, force_persona: str | None) -> None:
                 if test_id == "connected":
                     continue  # already handled above
 
-                print(bold(f"  [{i+1}/{len(tests_to_run)}] {test['name']}"))
+                print(bold(f"  [{i + 1}/{len(tests_to_run)}] {test['name']}"))
                 print(dim(f"  {test['desc']}"))
 
                 # Ensure plugin is enabled
@@ -534,7 +557,11 @@ async def run_tests(only: list[str] | None, force_persona: str | None) -> None:
                     try:
                         ok = await ensure_plugin_enabled(token, test["requires_plugin"])
                     except Exception as plugin_exc:
-                        print(yellow(f"  ⚠  Plugin enable error: {type(plugin_exc).__name__}: {plugin_exc}"))
+                        print(
+                            yellow(
+                                f"  ⚠  Plugin enable error: {type(plugin_exc).__name__}: {plugin_exc}"
+                            )
+                        )
                         ok = False
                     if not ok:
                         print(yellow("  ⚠  Plugin unavailable — skipping"))
@@ -572,14 +599,21 @@ async def run_tests(only: list[str] | None, force_persona: str | None) -> None:
 
                     # Grade it
                     passed, reason = grade_result(test, messages)
-                    status_str = green(f"✓ PASS ({elapsed:.1f}s)") if passed else red(f"✗ FAIL ({elapsed:.1f}s)")
+                    status_str = (
+                        green(f"✓ PASS ({elapsed:.1f}s)")
+                        if passed
+                        else red(f"✗ FAIL ({elapsed:.1f}s)")
+                    )
                     print(f"\n  {status_str} — {reason}")
                     results[test_id] = (passed, reason)
-                except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as ws_err:
+                except (
+                    websockets.exceptions.ConnectionClosed,
+                    websockets.exceptions.ConnectionClosedError,
+                ) as ws_err:
                     print(red(f"\n  ✗ WebSocket closed: {ws_err}"))
                     results[test_id] = (False, "websocket closed")
                     # Mark any remaining tests as skipped
-                    for remaining_test in tests_to_run[i+1:]:
+                    for remaining_test in tests_to_run[i + 1 :]:
                         if remaining_test["id"] != "connected":
                             results[remaining_test["id"]] = (False, "skipped — connection lost")
                     break

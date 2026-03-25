@@ -184,7 +184,7 @@ def _run_image_generation(
 
     results = []
     for img in response.images:
-        gcs_uri = img._gcs_uri  # noqa: SLF001
+        gcs_uri = img._gcs_uri
         if not gcs_uri:
             # Save locally and upload if GCS URI not set
             import io
@@ -199,7 +199,7 @@ def _run_image_generation(
             bucket = client.bucket(bucket_name)
             blob = bucket.blob(blob_path)
             buf = io.BytesIO()
-            img._pil_image.save(buf, format="PNG")  # noqa: SLF001
+            img._pil_image.save(buf, format="PNG")
             buf.seek(0)
             blob.upload_from_file(buf, content_type="image/png")
             gcs_uri = dest
@@ -244,17 +244,13 @@ async def generate_video(
         ``gcs_uri`` (gs:// path) and ``download_url`` (signed HTTPS URL).
     """
     run_id = uuid.uuid4().hex[:8]
-    output_prefix = (
-        f"gs://{settings.GCS_BUCKET_NAME}/generated/videos/{run_id}/"
-    )
+    output_prefix = f"gs://{settings.GCS_BUCKET_NAME}/generated/videos/{run_id}/"
 
     # Clamp inputs
     duration_seconds = max(4, min(8, duration_seconds))
     sample_count = max(1, min(4, sample_count))
 
-    logger.info(
-        "Starting Veo 2 video generation: run_id=%s prompt=%.80s", run_id, prompt
-    )
+    logger.info("Starting Veo 2 video generation: run_id=%s prompt=%.80s", run_id, prompt)
 
     try:
         result = await asyncio.to_thread(
@@ -295,15 +291,11 @@ async def generate_image(
         ``gcs_uri`` (gs:// path) and ``download_url`` (signed HTTPS URL).
     """
     run_id = uuid.uuid4().hex[:8]
-    output_prefix = (
-        f"gs://{settings.GCS_BUCKET_NAME}/generated/images/{run_id}/"
-    )
+    output_prefix = f"gs://{settings.GCS_BUCKET_NAME}/generated/images/{run_id}/"
 
     number_of_images = max(1, min(4, number_of_images))
 
-    logger.info(
-        "Starting Imagen 3 generation: run_id=%s prompt=%.80s", run_id, prompt
-    )
+    logger.info("Starting Imagen 3 generation: run_id=%s prompt=%.80s", run_id, prompt)
 
     try:
         result = await asyncio.to_thread(
@@ -318,9 +310,7 @@ async def generate_image(
         logger.exception("Image generation failed: %s", exc)
         return {"status": "error", "message": str(exc)}
 
-    logger.info(
-        "Imagen 3 generation complete: run_id=%s status=%s", run_id, result.get("status")
-    )
+    logger.info("Imagen 3 generation complete: run_id=%s status=%s", run_id, result.get("status"))
     return result
 
 
