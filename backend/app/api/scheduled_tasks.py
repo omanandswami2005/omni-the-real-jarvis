@@ -55,16 +55,18 @@ async def create_scheduled_task(
     user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Create a new scheduled/cron task."""
-    from app.services.scheduler_service import get_scheduler_service
+    from app.services.scheduler_service import ScheduledTaskCreateParams, get_scheduler_service
 
     svc = get_scheduler_service()
     task = await svc.create_task(
         user_id=user.uid,
-        description=body.description,
-        action=body.action,
-        action_params=body.action_params or {},
-        schedule=body.schedule,
-        notify_rule=None,
+        params=ScheduledTaskCreateParams(
+            description=body.description,
+            action=body.action,
+            schedule=body.schedule,
+            action_params=body.action_params or {},
+            notify_rule=None,
+        )
     )
     return task.to_summary()
 

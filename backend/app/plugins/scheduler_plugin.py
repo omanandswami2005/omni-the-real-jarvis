@@ -162,7 +162,7 @@ async def create_scheduled_task(
     """
     import json
 
-    from app.services.scheduler_service import get_scheduler_service
+    from app.services.scheduler_service import ScheduledTaskCreateParams, get_scheduler_service
 
     svc = get_scheduler_service()
 
@@ -193,12 +193,14 @@ async def create_scheduled_task(
 
     task = await svc.create_task(
         user_id=_get_user_id(tool_context),
-        description=description,
-        action=action,
-        schedule=cron_expr,
-        schedule_type=schedule_type,
-        action_params=params,
-        notify_rule=notify_rule,
+        params=ScheduledTaskCreateParams(
+            description=description,
+            action=action,
+            schedule=cron_expr,
+            schedule_type=schedule_type,
+            action_params=params,
+            notify_rule=notify_rule,
+        )
     )
 
     return {

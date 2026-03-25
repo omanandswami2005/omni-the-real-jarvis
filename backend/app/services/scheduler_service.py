@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -28,6 +29,17 @@ COLLECTION = "scheduled_tasks"
 
 
 # ── Data model ────────────────────────────────────────────────────────
+
+
+
+@dataclass
+class ScheduledTaskCreateParams:
+    description: str
+    action: str
+    schedule: str
+    schedule_type: str = "cron"
+    action_params: dict | None = None
+    notify_rule: dict | None = None
 
 
 class ScheduledTask:
@@ -173,22 +185,17 @@ class SchedulerService:
     async def create_task(
         self,
         user_id: str,
-        description: str,
-        action: str,
-        schedule: str,
-        schedule_type: str = "cron",
-        action_params: dict | None = None,
-        notify_rule: dict | None = None,
+        params: ScheduledTaskCreateParams,
     ) -> ScheduledTask:
         """Create a new scheduled task and optionally register with Cloud Scheduler."""
         task = ScheduledTask(
             user_id=user_id,
-            description=description,
-            action=action,
-            action_params=action_params,
-            schedule=schedule,
-            schedule_type=schedule_type,
-            notify_rule=notify_rule,
+            description=params.description,
+            action=params.action,
+            action_params=params.action_params,
+            schedule=params.schedule,
+            schedule_type=params.schedule_type,
+            notify_rule=params.notify_rule,
             status="active",
         )
 
@@ -196,15 +203,15 @@ class SchedulerService:
         self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
 
         # Try to register with Cloud Scheduler for recurring tasks
-        if schedule_type == "cron":
+        if params.schedule_type == "cron":
             await self._register_cloud_scheduler(task)
 
         logger.info(
             "scheduled_task_created",
             task_id=task.id,
             user_id=user_id,
-            schedule=schedule,
-            action=action,
+            schedule=params.schedule,
+            action=params.action,
         )
 
         # Publish event for dashboard
