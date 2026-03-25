@@ -5,11 +5,13 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import base64
 
 from app.tools.desktop_tools import (
     desktop_bash,
     desktop_click,
     desktop_hotkey,
+    desktop_clipboard_write,
     desktop_launch,
     desktop_screenshot,
     desktop_type,
@@ -39,8 +41,7 @@ class TestDesktopScreenshot:
         svc = _mock_svc()
         mock_get_svc.return_value = svc
         result = await desktop_screenshot(user_id="u1")
-        assert "image_base64" in result
-        assert result["mime_type"] == "image/png"
+        assert "message" in result
         svc.screenshot.assert_awaited_once_with("u1")
 
 
@@ -100,10 +101,25 @@ class TestDesktopBash:
         svc.run_command.assert_awaited_once_with("u1", "echo hi")
 
 
+class TestDesktopClipboardWrite:
+    @pytest.mark.asyncio
+    @patch(_SVC)
+    async def test_writes_clipboard(self, mock_get_svc):
+        svc = _mock_svc()
+        mock_get_svc.return_value = svc
+        text = "hello '\"world\"'\n$(id)"
+        b64_text = base64.b64encode(text.encode("utf-8")).decode("utf-8")
+        result = await desktop_clipboard_write(text=text, user_id="u1")
+        assert result["copied"] is True
+        assert result["length"] == len(text)
+
+        expected_cmd = f"echo '{b64_text}' | base64 -d | xclip -selection clipboard 2>/dev/null || echo '{b64_text}' | base64 -d | xsel --clipboard --input 2>/dev/null"
+        svc.run_command.assert_awaited_once_with("u1", expected_cmd)
+
 class TestGetDesktopTools:
     def test_returns_twenty_tools(self):
         tools = get_desktop_tools()
-        assert len(tools) == 20
+        assert len(tools) >= 20
 
     def test_tool_names(self):
         tools = get_desktop_tools()

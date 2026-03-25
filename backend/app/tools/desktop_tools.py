@@ -737,9 +737,12 @@ async def desktop_clipboard_write(text: str, user_id: str = "default") -> dict:
         Confirmation.
     """
     svc = get_e2b_desktop_service()
-    # Use printf to safely handle special characters
-    safe_text = text.replace("\\", "\\\\").replace("'", "'\\''")
-    await svc.run_command(user_id, f"printf '%s' '{safe_text}' | xclip -selection clipboard 2>/dev/null || printf '%s' '{safe_text}' | xsel --clipboard --input 2>/dev/null")
+    # Use base64 encoding to securely pass arbitrary text without command injection risk
+    b64_text = base64.b64encode(text.encode("utf-8")).decode("utf-8")
+    await svc.run_command(
+        user_id,
+        f"echo '{b64_text}' | base64 -d | xclip -selection clipboard 2>/dev/null || echo '{b64_text}' | base64 -d | xsel --clipboard --input 2>/dev/null"
+    )
     return {"copied": True, "length": len(text)}
 
 
