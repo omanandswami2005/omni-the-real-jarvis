@@ -14,8 +14,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from app.middleware.auth_middleware import CurrentUser
 from app.api.ws_live import invalidate_runner
+from app.middleware.auth_middleware import CurrentUser
 from app.models.plugin import (
     PluginKind,
     PluginManifest,
@@ -236,20 +236,13 @@ async def start_oauth(plugin_id: str, user: CurrentUser):
     if not manifest.url:
         raise HTTPException(status_code=400, detail=f"Plugin '{plugin_id}' has no MCP server URL")
 
-    oauth_cfg = manifest.oauth
-    client_name = oauth_cfg.client_name if oauth_cfg else "Omni Hub"
-    scopes = oauth_cfg.scopes if oauth_cfg else []
-    redirect_uri = oauth_cfg.redirect_uri if oauth_cfg and oauth_cfg.redirect_uri else ""
-
     try:
         oauth = get_oauth_service()
         auth_url = await oauth.start_oauth_flow(
             plugin_id=plugin_id,
             user_id=user.uid,
             mcp_server_url=manifest.url,
-            client_name=client_name,
-            scopes=scopes,
-            redirect_uri=redirect_uri,
+            oauth_config=manifest.oauth,
         )
         return {"auth_url": auth_url, "plugin_id": plugin_id}
     except Exception as exc:

@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.models.plugin import OAuthConfig
 from app.services import secret_service
 from app.utils.logging import get_logger
 
@@ -299,11 +300,13 @@ class OAuthService:
         plugin_id: str,
         user_id: str,
         mcp_server_url: str,
-        client_name: str = "Omni Hub",
-        scopes: list[str] | None = None,
-        redirect_uri: str = "",
+        oauth_config: OAuthConfig | None = None,
     ) -> str:
         """Begin OAuth authorization. Returns the authorization URL to redirect the user to."""
+        client_name = oauth_config.client_name if oauth_config else "Omni Hub"
+        scopes = oauth_config.scopes if oauth_config else []
+        redirect_uri = oauth_config.redirect_uri if oauth_config and oauth_config.redirect_uri else ""
+
         if not redirect_uri:
             backend_base = os.environ.get("BACKEND_URL", "http://localhost:8000")
             redirect_uri = f"{backend_base}/api/v1/plugins/oauth/callback"
