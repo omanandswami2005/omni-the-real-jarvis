@@ -29,13 +29,13 @@ COLLECTION = "personas"
 class PersonaService:
     """Firestore-backed persona CRUD, scoped per user."""
 
-    def __init__(self, db: firestore.Client | None = None) -> None:
+    def __init__(self, db: firestore.AsyncClient | None = None) -> None:
         self._db = db
 
     @property
-    def db(self) -> firestore.Client:
+    def db(self) -> firestore.AsyncClient:
         if self._db is None:
-            self._db = firestore.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
+            self._db = firestore.AsyncClient(project=settings.GOOGLE_CLOUD_PROJECT or None)
         return self._db
 
     # ── List ──────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ class PersonaService:
         query = self.db.collection(COLLECTION).where(
             filter=firestore.FieldFilter("user_id", "==", user_id)
         )
-        user_personas = [PersonaResponse(id=snap.id, **snap.to_dict()) for snap in query.stream()]
+        user_personas = [PersonaResponse(id=snap.id, **snap.to_dict()) async for snap in query.stream()]
         user_personas.sort(key=lambda p: p.created_at or datetime.min, reverse=True)
         return defaults + user_personas
 
@@ -59,7 +59,7 @@ class PersonaService:
             if p.id == persona_id:
                 return p
 
-        snap = self.db.collection(COLLECTION).document(persona_id).get()
+        snap = await self.db.collection(COLLECTION).document(persona_id).get()
         if not snap.exists:
             raise NotFoundError("Persona", persona_id)
         doc = snap.to_dict()
@@ -82,7 +82,7 @@ class PersonaService:
             "is_default": False,
             "created_at": now,
         }
-        self.db.collection(COLLECTION).document(persona_id).set(doc)
+        await self.db.collection(COLLECTION).document(persona_id).set(doc)
         logger.info("persona_created", persona_id=persona_id, user_id=user_id)
         return PersonaResponse(id=persona_id, **doc)
 
@@ -101,7 +101,7 @@ class PersonaService:
         if not updates:
             return await self.get_persona(user_id, persona_id)
 
-        self.db.collection(COLLECTION).document(persona_id).update(updates)
+        await self.db.collection(COLLECTION).document(persona_id).update(updates)
         logger.info("persona_updated", persona_id=persona_id)
         return await self.get_persona(user_id, persona_id)
 
@@ -113,7 +113,7 @@ class PersonaService:
 
         # Verify ownership
         await self.get_persona(user_id, persona_id)
-        self.db.collection(COLLECTION).document(persona_id).delete()
+        await self.db.collection(COLLECTION).document(persona_id).delete()
         logger.info("persona_deleted", persona_id=persona_id, user_id=user_id)
 
 

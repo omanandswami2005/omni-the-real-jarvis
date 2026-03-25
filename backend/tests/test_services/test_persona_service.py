@@ -38,7 +38,10 @@ class _FakeCollectionRef:
     def document(self, doc_id):
         return _FakeDocRef(self._store, self._col, doc_id)
 
-    def where(self, field, op, value):
+    def where(self, filter=None, field=None, op=None, value=None):
+        if filter is not None:
+            # Simple mock for FieldFilter
+            return _FakeQuery(self._store, self._col, getattr(filter, "field_path", field), getattr(filter, "op_string", op), getattr(filter, "value", value))
         return _FakeQuery(self._store, self._col, field, op, value)
 
     def order_by(self, field, direction=None):
@@ -51,21 +54,21 @@ class _FakeDocRef:
         self._col = col_name
         self._id = doc_id
 
-    def set(self, data):
+    async def set(self, data):
         self._store[self._col][self._id] = dict(data)
 
-    def get(self):
+    async def get(self):
         if self._id in self._store.get(self._col, {}):
             return _FakeDocSnap(self._id, self._store[self._col][self._id])
         return _FakeDocSnap(self._id, {}, exists=False)
 
-    def update(self, updates):
+    async def update(self, updates):
         if self._id not in self._store.get(self._col, {}):
             msg = "not found"
             raise Exception(msg)
         self._store[self._col][self._id].update(updates)
 
-    def delete(self):
+    async def delete(self):
         self._store.get(self._col, {}).pop(self._id, None)
 
 
@@ -78,14 +81,16 @@ class _FakeQuery:
         self._value = value
         self._order_field = order_field
 
-    def where(self, field, op, value):
+    def where(self, filter=None, field=None, op=None, value=None):
+        if filter is not None:
+            return _FakeQuery(self._store, self._col, getattr(filter, "field_path", field), getattr(filter, "op_string", op), getattr(filter, "value", value))
         return _FakeQuery(self._store, self._col, field, op, value)
 
     def order_by(self, field, direction=None):
         self._order_field = field
         return self
 
-    def stream(self):
+    async def stream(self):
         results = []
         for doc_id, data in self._store.get(self._col, {}).items():
             if self._field and self._op == "==" and data.get(self._field) != self._value:
@@ -93,7 +98,9 @@ class _FakeQuery:
             results.append(_FakeDocSnap(doc_id, data))
         if self._order_field:
             results.sort(key=lambda s: s.to_dict().get(self._order_field, ""), reverse=True)
-        return results
+
+        for r in results:
+            yield r
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
