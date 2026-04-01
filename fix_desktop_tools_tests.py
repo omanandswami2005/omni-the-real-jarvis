@@ -1,5 +1,3 @@
-import re
-
 with open("backend/tests/test_tools/test_desktop_tools.py", "r") as f:
     content = f.read()
 
@@ -27,7 +25,10 @@ search_screenshot = """    @pytest.mark.asyncio
         assert "message" in result
         svc.screenshot.assert_awaited_once_with("u1")"""
 
-replace_screenshot = """    @pytest.mark.asyncio
+import base64
+expected_b64 = base64.b64encode(b"\x89PNG fake").decode()
+
+replace_screenshot = f"""    @pytest.mark.asyncio
     @patch(_SVC)
     @patch("app.tools.desktop_tools._queue_screenshot")
     async def test_returns_image(self, mock_queue, mock_get_svc):
@@ -37,16 +38,9 @@ replace_screenshot = """    @pytest.mark.asyncio
         assert "message" in result
         svc.screenshot.assert_awaited_once_with("u1")
         # Ensure it enqueues the base64 image
-        mock_queue.assert_called_once_with("u1", "iVBORw0KGgo=", description="Desktop screenshot")"""
+        mock_queue.assert_called_once_with("u1", "{expected_b64}", description="Desktop screenshot")"""
 
 content = content.replace(search_screenshot, replace_screenshot)
-
-# Wait, the bytes were b"\\x89PNG fake" which is b'\x89PNG fake'.
-# base64.b64encode(b"\x89PNG fake") is "iVBORw0KGgo=" ? Let's check!
-import base64
-print(base64.b64encode(b"\x89PNG fake").decode())
-
-# I will replace it exactly with what it outputs
 
 with open("backend/tests/test_tools/test_desktop_tools.py", "w") as f:
     f.write(content)

@@ -228,7 +228,7 @@ async def main():
     async with httpx.AsyncClient(timeout=10) as client:
         try:
             r = await client.get(f"{BACKEND_URL}/api/v1/health")
-            print(green(f"\n  Backend reachable") + dim(f" ({r.status_code})"))
+            print(green("\n  Backend reachable") + dim(f" ({r.status_code})"))
         except Exception as e:
             print(red(f"\n  Backend unreachable: {e}"))
             sys.exit(1)

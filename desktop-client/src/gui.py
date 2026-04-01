@@ -1,11 +1,10 @@
-import asyncio
 import base64
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QLineEdit, QPushButton, QLabel, QMessageBox,
     QSystemTrayIcon
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtCore import pyqtSignal, QTimer
 from PyQt6.QtGui import QIcon
 
 from src.screen import capture_screen

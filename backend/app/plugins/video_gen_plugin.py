@@ -184,7 +184,7 @@ def _run_image_generation(
 
     results = []
     for img in response.images:
-        gcs_uri = img._gcs_uri  # noqa: SLF001
+        gcs_uri = img._gcs_uri
         if not gcs_uri:
             # Save locally and upload if GCS URI not set
             import io
@@ -199,7 +199,7 @@ def _run_image_generation(
             bucket = client.bucket(bucket_name)
             blob = bucket.blob(blob_path)
             buf = io.BytesIO()
-            img._pil_image.save(buf, format="PNG")  # noqa: SLF001
+            img._pil_image.save(buf, format="PNG")
             buf.seek(0)
             blob.upload_from_file(buf, content_type="image/png")
             gcs_uri = dest

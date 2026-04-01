@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-import base64
-
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from app.middleware.auth_middleware import AuthenticatedUser, get_current_user
-from app.models.planned_task import TaskActionRequest, TaskCreateRequest, TaskEditRequest, TaskInputResponse
+from app.models.planned_task import (
+    TaskActionRequest,
+    TaskCreateRequest,
+    TaskEditRequest,
+    TaskInputResponse,
+)
 from app.services.task_orchestrator import get_task_orchestrator
 from app.utils.logging import get_logger
 
@@ -302,7 +305,7 @@ async def desktop_streaming_status(
 @router.post("/desktop/upload")
 async def upload_to_desktop(
     file: UploadFile = File(...),  # noqa: B008
-    path: str = Form("/home/user"),  # noqa: B008
+    path: str = Form("/home/user"),
     user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
 ):
     """Upload a file from the user's machine to the E2B Desktop sandbox.

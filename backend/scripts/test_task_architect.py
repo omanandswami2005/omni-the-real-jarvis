@@ -100,7 +100,7 @@ async def firebase_sign_in() -> str:
         print(red(f"  Firebase sign-in failed: {err}"))
         sys.exit(1)
     token = resp.json()["idToken"]
-    print(green(f"  Auth OK") + dim(f"  ({token[:20]}...)"))
+    print(green("  Auth OK") + dim(f"  ({token[:20]}...)"))
     return token
 
 
@@ -136,14 +136,14 @@ async def listen_events(token: str, all_done: asyncio.Event, pipeline_seen: asyn
             if auth_resp.get("status") != "ok":
                 print(red(f"  [events] Auth failed: {auth_resp}"))
                 return
-            print(green(f"  [events] Auth OK") + dim(f"  uid={auth_resp.get('user_id', '?')}"))
+            print(green("  [events] Auth OK") + dim(f"  uid={auth_resp.get('user_id', '?')}"))
             print(dim("  [events] Listening for pipeline events...\n"))
 
             # Listen until all_done is set
             while not all_done.is_set():
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
                 except Exception:
                     break
@@ -225,13 +225,13 @@ async def run_chat(token: str, all_done: asyncio.Event) -> bool:
             if auth_resp.get("type") not in ("auth_response", "connected") and auth_resp.get("status") != "ok":
                 print(red(f"  [chat] Auth failed: {auth_resp}"))
                 return False
-            print(green(f"  [chat] Auth OK"))
+            print(green("  [chat] Auth OK"))
 
             # Drain any session bootstrap messages
             try:
                 while True:
                     await asyncio.wait_for(ws.recv(), timeout=1.5)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
 
             # Send the complex task
@@ -255,7 +255,7 @@ async def run_chat(token: str, all_done: asyncio.Event) -> bool:
                 silence = 90.0 if saw_plan_task and not has_response else 15.0
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=min(remaining, silence))
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if has_response:
                         break
                     if idle_count >= 2:
@@ -372,7 +372,7 @@ async def main() -> None:
     # Wait for event listener to finish
     try:
         await asyncio.wait_for(events_task, timeout=5)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         events_task.cancel()
 
     print()

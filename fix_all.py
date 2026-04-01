@@ -25,7 +25,7 @@ replace_screenshot = """    @pytest.mark.asyncio
         result = await desktop_screenshot(user_id="u1")
         assert "message" in result
         svc.screenshot.assert_awaited_once_with("u1")
-        mock_queue.assert_called_once_with("u1", "iVBORw0KGgo=", description="Desktop screenshot")"""
+        mock_queue.assert_called_once_with("u1", "iVBORyBmYWtl", description="Desktop screenshot")"""
 content = content.replace(search_screenshot, replace_screenshot)
 
 # 3. Fix clipboard test pipefail
@@ -42,15 +42,24 @@ content = content.replace(search_cmd, replace_cmd)
 # 4. Docstrings
 lines = content.split('\n')
 new_lines = []
-for line in lines:
+for i, line in enumerate(lines):
     new_lines.append(line)
     if "def _mock_svc():" in line:
         new_lines.append('    """Mock desktop service."""')
     elif line.startswith("class Test"):
         new_lines.append('    """Tests."""')
-    elif "def test_" in line and not line.strip().startswith('"""'):
+    elif "def test_" in line:
         spaces = len(line) - len(line.lstrip())
-        new_lines.append(" " * spaces + '    """Test case."""')
+        # Look ahead to check if next non-empty, non-comment line already has a docstring
+        has_docstring = False
+        for j in range(i + 1, len(lines)):
+            next_line = lines[j].strip()
+            if next_line and not next_line.startswith('#'):
+                if next_line.startswith('"""') or next_line.startswith("'''"):
+                    has_docstring = True
+                break
+        if not has_docstring:
+            new_lines.append(" " * (spaces + 4) + '"""Test case."""')
 
 with open("backend/tests/test_tools/test_desktop_tools.py", "w") as f:
     f.write('\n'.join(new_lines))

@@ -18,8 +18,8 @@ Requires: requests
 from __future__ import annotations
 
 import argparse
-import json
 import sys
+
 
 def get_token_via_rest_api(api_key: str, email: str, password: str) -> str:
     """Sign in with email/password via Firebase REST API and return ID token."""
@@ -38,7 +38,6 @@ def get_token_via_custom_token(sa_path: str, uid: str) -> str:
     """Create a custom token via Admin SDK, then exchange it for an ID token."""
     import firebase_admin
     from firebase_admin import auth, credentials
-    import requests
 
     cred = credentials.Certificate(sa_path)
     try:
@@ -51,8 +50,8 @@ def get_token_via_custom_token(sa_path: str, uid: str) -> str:
     # Exchange custom token for ID token via REST API
     # Need the web API key from Firebase console
     project_id = cred.project_id
-    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=AIzaSy_YOUR_WEB_API_KEY"
-    print(f"NOTE: To exchange custom token, you need your Firebase Web API Key.", file=sys.stderr)
+    url = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=AIzaSy_YOUR_WEB_API_KEY"
+    print("NOTE: To exchange custom token, you need your Firebase Web API Key.", file=sys.stderr)
     print(f"Custom token (use with Firebase client SDK): {custom_token}", file=sys.stderr)
     return custom_token
 

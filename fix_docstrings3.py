@@ -1,5 +1,3 @@
-import ast
-
 with open("backend/tests/test_tools/test_desktop_tools.py", "r") as f:
     content = f.read()
 
@@ -22,7 +20,8 @@ for line in lines:
     new_lines.append(line)
     if "async def test_" in line or "def test_" in line:
         spaces = len(line) - len(line.lstrip())
-        new_lines.append(" " * spaces + '    """Test method."""')
+        # Indent docstring correctly inside the function body (function indent + 4 spaces)
+        new_lines.append(" " * (spaces + 4) + '"""Test method."""')
 
 with open("backend/tests/test_tools/test_desktop_tools.py", "w") as f:
     f.write('\n'.join(new_lines))

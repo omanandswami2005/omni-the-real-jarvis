@@ -5,7 +5,6 @@ which handles the ``connect``, ``status``, and ``config`` sub-commands.
 When launched directly without arguments it defaults to ``connect``.
 """
 import sys
-import os
 
 # Make sure the bundled src package is importable when running in a frozen exe
 if getattr(sys, "frozen", False):

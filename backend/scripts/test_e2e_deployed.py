@@ -99,7 +99,7 @@ async def main():
             try:
                 msg = await asyncio.wait_for(ws.recv(), timeout=5)
                 ok("WebSocket /ws/live — connected and received response", f"msg={str(msg)[:80]}")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 ok("WebSocket /ws/live — connected (no response within 5s, expected without auth)")
             except websockets.exceptions.ConnectionClosed as e:
                 ok("WebSocket /ws/live — server closed connection", f"code={e.code} reason={e.reason[:60] if e.reason else ''}")
@@ -118,7 +118,7 @@ async def main():
             try:
                 msg = await asyncio.wait_for(ws.recv(), timeout=5)
                 ok("WebSocket /ws/events — connected", f"msg={str(msg)[:80]}")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 ok("WebSocket /ws/events — connected (waiting for auth)")
             except websockets.exceptions.ConnectionClosed as e:
                 ok("WebSocket /ws/events — server closed", f"code={e.code}")

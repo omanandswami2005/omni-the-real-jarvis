@@ -1,5 +1,3 @@
-import re
-
 with open("backend/app/tools/desktop_tools.py", "r") as f:
     content = f.read()
 

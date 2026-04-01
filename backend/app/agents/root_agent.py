@@ -29,7 +29,6 @@ from google.adk.tools.agent_tool import AgentTool
 from app.agents.agent_factory import LIVE_MODEL, create_agent
 from app.agents.multimodal_agent_tool import MultimodalAgentTool
 from app.agents.personas import get_default_personas
-from app.tools.cross_client import get_cross_client_tools
 from app.middleware.agent_callbacks import (
     after_agent_callback,
     before_agent_callback,
@@ -40,6 +39,7 @@ from app.middleware.agent_callbacks import (
 )
 from app.models.persona import PersonaResponse
 from app.tools.capabilities_tool import get_capability_tools
+from app.tools.cross_client import get_cross_client_tools
 from app.tools.task_tools import get_human_input_tools, get_planned_task_tools
 from app.utils.logging import get_logger
 

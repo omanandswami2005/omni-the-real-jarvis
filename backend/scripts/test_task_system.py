@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import os
 import sys
 import time
@@ -463,7 +462,7 @@ async def main():
     async with httpx.AsyncClient(timeout=10) as client:
         try:
             r = await client.get(f"{BACKEND_URL}/api/v1/health")
-            print(green(f"  Backend reachable") + dim(f" ({r.status_code})"))
+            print(green("  Backend reachable") + dim(f" ({r.status_code})"))
         except Exception as e:
             print(red(f"  Backend unreachable: {e}"))
             sys.exit(1)

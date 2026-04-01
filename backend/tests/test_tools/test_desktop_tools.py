@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+import base64
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import base64
 
 from app.tools.desktop_tools import (
     desktop_bash,
     desktop_click,
-    desktop_hotkey,
     desktop_clipboard_write,
+    desktop_hotkey,
     desktop_launch,
     desktop_screenshot,
     desktop_type,

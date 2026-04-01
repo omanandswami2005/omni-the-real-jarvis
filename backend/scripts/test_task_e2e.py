@@ -41,7 +41,6 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 # ── Load .env ──────────────────────────────────────────────────────────
 _env_file = Path(__file__).parent.parent / ".env"
@@ -174,7 +173,7 @@ class ApiClient:
                         "status": resp.status_code,
                         "body": resp.json() if resp.status_code < 500 else {},
                     }
-            except Exception as e:
+            except Exception:
                 if attempt < 2:
                     await asyncio.sleep(2)
                 else:
@@ -267,9 +266,7 @@ class EventCollector:
         """Get all events for a specific task."""
         result = []
         for e in self.events:
-            if e.get("task_id") == task_id:
-                result.append(e)
-            elif e.get("task", {}).get("id") == task_id:
+            if e.get("task_id") == task_id or e.get("task", {}).get("id") == task_id:
                 result.append(e)
         return result
 

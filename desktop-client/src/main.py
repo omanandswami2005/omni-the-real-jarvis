@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-import threading
 from pathlib import Path
 
 import typer

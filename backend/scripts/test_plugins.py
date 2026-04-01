@@ -14,13 +14,13 @@ Run from backend directory:
 from __future__ import annotations
 
 import asyncio
-import sys
 import os
+import sys
 
 # Ensure app is importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.utils.logging import setup_logging, get_logger
+from app.utils.logging import get_logger, setup_logging
 
 setup_logging("INFO")
 logger = get_logger(__name__)
@@ -113,9 +113,9 @@ async def test_e2b_sandbox():
     print("TEST 3: E2B Sandbox — Code Execution")
     print("=" * 60)
 
-    from app.services.plugin_registry import get_plugin_registry
-    from app.services.e2b_service import get_e2b_service
     from app.config import get_settings
+    from app.services.e2b_service import get_e2b_service
+    from app.services.plugin_registry import get_plugin_registry
 
     settings = get_settings()
     if not settings.E2B_API_KEY:

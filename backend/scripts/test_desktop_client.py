@@ -514,8 +514,8 @@ def print_messages(messages: list[dict], indent: str = "    ") -> None:
 
 async def test_auth(ws, token: str, results: dict) -> dict | None:
     """Test 1: Auth handshake as desktop client."""
-    print(bold(f"  [1] Desktop WS Auth & Handshake"))
-    print(dim(f"  Connect as desktop client, verify auth_response"))
+    print(bold("  [1] Desktop WS Auth & Handshake"))
+    print(dim("  Connect as desktop client, verify auth_response"))
 
     auth_resp = await desktop_auth(ws, token)
     if not auth_resp:
@@ -548,8 +548,8 @@ async def test_auth(ws, token: str, results: dict) -> dict | None:
 
 async def test_text(ws, results: dict) -> None:
     """Test 2: Text chat via desktop WS."""
-    print(bold(f"\n  [2] Text Chat via /ws/live"))
-    print(dim(f"  Send text message, receive agent response"))
+    print(bold("\n  [2] Text Chat via /ws/live"))
+    print(dim("  Send text message, receive agent response"))
 
     prompt = "Say hello and tell me what type of client I am connected as. Keep it brief, one sentence max."
     print(f"  {dim('Prompt:')} {prompt[:100]}")
@@ -590,8 +590,8 @@ async def test_text(ws, results: dict) -> None:
 
 async def test_t3_tools(ws, results: dict) -> None:
     """Test 3: T3 tool invocation — register local_tools, ask agent to use them."""
-    print(bold(f"\n  [3] T3 Tool Registration & Invocation"))
-    print(dim(f"  Ask agent to capture screen — should invoke our local capture_screen tool"))
+    print(bold("\n  [3] T3 Tool Registration & Invocation"))
+    print(dim("  Ask agent to capture screen — should invoke our local capture_screen tool"))
 
     prompt = "Please capture a screenshot of my desktop screen right now using the capture_screen tool."
     print(f"  {dim('Prompt:')} {prompt[:100]}")
@@ -644,8 +644,8 @@ async def test_t3_tools(ws, results: dict) -> None:
 
 async def test_cross_client(ws, results: dict) -> None:
     """Test 4: Cross-client — list connected clients."""
-    print(bold(f"\n  [4] Cross-Client — List Clients"))
-    print(dim(f"  Ask agent to list connected clients"))
+    print(bold("\n  [4] Cross-Client — List Clients"))
+    print(dim("  Ask agent to list connected clients"))
 
     prompt = "What client devices do I currently have connected? List them all."
     print(f"  {dim('Prompt:')} {prompt[:80]}")
@@ -691,8 +691,8 @@ async def test_cross_client(ws, results: dict) -> None:
 
 async def test_ping_pong(ws, results: dict) -> None:
     """Test 5: Ping/Pong protocol — send ping, get pong (application-level)."""
-    print(bold(f"\n  [5] Protocol — Ping/Pong"))
-    print(dim(f"  Send ping JSON frame, verify pong response"))
+    print(bold("\n  [5] Protocol — Ping/Pong"))
+    print(dim("  Send ping JSON frame, verify pong response"))
 
     # Note: The ping/pong in the desktop client protocol is application-level JSON,
     # not WebSocket protocol-level pings. The server dispatches pong on receiving ping.
@@ -726,8 +726,8 @@ async def test_ping_pong(ws, results: dict) -> None:
 
 async def test_interrupt(ws, results: dict) -> None:
     """Test 6: Client interrupt signal."""
-    print(bold(f"\n  [6] Client Interrupt Signal"))
-    print(dim(f"  Send a request, then interrupt it"))
+    print(bold("\n  [6] Client Interrupt Signal"))
+    print(dim("  Send a request, then interrupt it"))
 
     # Send a prompt that will take a while
     prompt = "Write me a very long and detailed essay about the complete history of computing from 1800 to today."
@@ -758,17 +758,17 @@ async def test_interrupt(ws, results: dict) -> None:
     )
 
     if has_recovery:
-        print(green(f"\n  ✓ PASS — interrupt handled, connection recovered"))
+        print(green("\n  ✓ PASS — interrupt handled, connection recovered"))
         results["interrupt"] = (True, "interrupt + recovery OK")
     else:
-        print(yellow(f"\n  ~ WARN — interrupt sent but no recovery response"))
+        print(yellow("\n  ~ WARN — interrupt sent but no recovery response"))
         results["interrupt"] = (True, "interrupt sent (recovery uncertain)")
 
 
 async def test_persona(ws, results: dict) -> None:
     """Test 7: Persona routing via desktop."""
-    print(bold(f"\n  [7] Persona Routing (Desktop)"))
-    print(dim(f"  Route to researcher persona"))
+    print(bold("\n  [7] Persona Routing (Desktop)"))
+    print(dim("  Route to researcher persona"))
 
     prompt = "[Use the researcher persona] Who are you and what are your specialties? Answer in 2 sentences."
     print(f"  {dim('Prompt:')} {prompt[:100]}")
@@ -807,8 +807,8 @@ async def test_reconnect(ws_url: str, token: str, results: dict) -> None:
     """Test 8: Disconnect and reconnect with same token."""
     import websockets
 
-    print(bold(f"\n  [8] Disconnect & Reconnect"))
-    print(dim(f"  Close WS, reconnect, verify new auth_response"))
+    print(bold("\n  [8] Disconnect & Reconnect"))
+    print(dim("  Close WS, reconnect, verify new auth_response"))
 
     max_retries = 3
     last_error = ""
@@ -844,10 +844,10 @@ async def test_reconnect(ws_url: str, token: str, results: dict) -> None:
                 has_resp = any(m.get("type") in ("response", "_binary_audio") for m in msgs)
 
                 if has_resp:
-                    print(green(f"\n  ✓ PASS — reconnect successful, session continuity"))
+                    print(green("\n  ✓ PASS — reconnect successful, session continuity"))
                     results["reconnect"] = (True, f"reconnected (s1={session1[:12]}, s2={session2[:12]})")
                 else:
-                    print(yellow(f"\n  ~ WARN — reconnected but no response to test message"))
+                    print(yellow("\n  ~ WARN — reconnected but no response to test message"))
                     results["reconnect"] = (True, "reconnect OK (no test response)")
                 return  # success — exit retry loop
 
@@ -863,8 +863,8 @@ async def test_reconnect(ws_url: str, token: str, results: dict) -> None:
 
 async def test_session_info(ws, all_messages: list[dict], results: dict) -> None:
     """Test 9: Session info messages."""
-    print(bold(f"\n  [9] Session Info Messages"))
-    print(dim(f"  Check for session_created / session_suggestion in received messages"))
+    print(bold("\n  [9] Session Info Messages"))
+    print(dim("  Check for session_created / session_suggestion in received messages"))
 
     # Session messages may have been received during earlier tests
     session_created = [m for m in all_messages if m.get("type") == "session_created"]
@@ -881,18 +881,18 @@ async def test_session_info(ws, all_messages: list[dict], results: dict) -> None
 
     # Pass if we got either message, or if auth indicated a session
     if session_created or session_suggestion:
-        print(green(f"\n  ✓ PASS — session messages received"))
+        print(green("\n  ✓ PASS — session messages received"))
         results["session_info"] = (True, f"created={len(session_created)} suggestion={len(session_suggestion)}")
     else:
         # Session messages are optional (e.g., if lazy creation hasn't triggered)
-        print(yellow(f"\n  ~ INFO — no session messages yet (lazy creation)"))
+        print(yellow("\n  ~ INFO — no session messages yet (lazy creation)"))
         results["session_info"] = (True, "no session messages (lazy creation OK)")
 
 
 async def test_cancel(ws, results: dict) -> None:
     """Test 10: Tool cancellation protocol."""
-    print(bold(f"\n  [10] Tool Cancellation Protocol"))
-    print(dim(f"  Verify cancel message format is accepted"))
+    print(bold("\n  [10] Tool Cancellation Protocol"))
+    print(dim("  Verify cancel message format is accepted"))
 
     # Send a tool_result with cancellation error (simulating what desktop client does)
     cancel_msg = {
@@ -913,10 +913,10 @@ async def test_cancel(ws, results: dict) -> None:
     has_resp = any(m.get("type") in ("response", "_binary_audio") for m in msgs)
 
     if has_resp:
-        print(green(f"\n  ✓ PASS — cancel protocol accepted, connection alive"))
+        print(green("\n  ✓ PASS — cancel protocol accepted, connection alive"))
         results["cancel"] = (True, "cancel message accepted")
     else:
-        print(yellow(f"\n  ~ WARN — cancel sent, no crash but no response"))
+        print(yellow("\n  ~ WARN — cancel sent, no crash but no response"))
         results["cancel"] = (True, "cancel accepted (no response)")
 
 
