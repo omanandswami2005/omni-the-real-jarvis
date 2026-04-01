@@ -85,7 +85,7 @@ def test_config_backend_url() -> None:
         mod = importlib.import_module("app.config")
 
     settings = mod.Settings()
-    if settings.BACKEND_URL == test_url:
+    if test_url == settings.BACKEND_URL:
         ok("Settings.BACKEND_URL reads from env", f"value={settings.BACKEND_URL}")
     else:
         fail("Settings.BACKEND_URL", f"expected {test_url}, got {settings.BACKEND_URL}")
@@ -187,13 +187,13 @@ async def test_plugin_catalog_api() -> None:
     catalog = resp.json()
     wiki = next((p for p in catalog if p.get("id") == "wikipedia"), None)
     if wiki:
-        ok(f"Wikipedia in catalog", f"state={wiki.get('state')}")
+        ok("Wikipedia in catalog", f"state={wiki.get('state')}")
     else:
         fail("Wikipedia not found in catalog")
 
     gcal = next((p for p in catalog if "calendar" in p.get("id", "").lower()), None)
     if gcal:
-        ok(f"Google Calendar in catalog", f"id={gcal['id']}, state={gcal.get('state')}")
+        ok("Google Calendar in catalog", f"id={gcal['id']}, state={gcal.get('state')}")
     else:
         print("  ℹ  Google Calendar not in catalog (expected if not configured)")
 
@@ -247,9 +247,9 @@ async def test_wikipedia_ws_tools() -> None:
             tools = auth_resp.get("available_tools", [])
             wiki_tools = [t for t in tools if "wikipedia" in t.lower()]
             if wiki_tools:
-                ok(f"Wikipedia tools in available_tools", f"{wiki_tools}")
+                ok("Wikipedia tools in available_tools", f"{wiki_tools}")
             else:
-                fail(f"No Wikipedia tools in available_tools", f"got {len(tools)} tools: {tools[:10]}")
+                fail("No Wikipedia tools in available_tools", f"got {len(tools)} tools: {tools[:10]}")
 
             # Send a Wikipedia search prompt
             await ws.send(json.dumps({
@@ -283,7 +283,7 @@ async def test_wikipedia_ws_tools() -> None:
             if saw_wiki_tool:
                 ok("Agent used a Wikipedia tool")
             else:
-                print(f"  ℹ  Agent may have used built-in knowledge instead of Wikipedia tool")
+                print("  ℹ  Agent may have used built-in knowledge instead of Wikipedia tool")
 
             if saw_response:
                 ok("Agent responded to Wikipedia query")

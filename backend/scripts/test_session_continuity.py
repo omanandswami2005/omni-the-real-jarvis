@@ -25,7 +25,6 @@ import asyncio
 import json
 import os
 import sys
-import time
 from urllib import request as urllib_request
 
 # ── Config ──────────────────────────────────────────────────────────
@@ -112,7 +111,7 @@ async def read_messages(ws, label: str, count: int = 10, timeout: float = 6.0):
             msg_type = data.get("type", data.get("status", "?"))
             print(f"    [{label}] {msg_type}: {json.dumps(data, indent=None)[:180]}")
             msgs.append(data)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             break
         except Exception as e:
             print(f"    [{label}] error: {e}")
@@ -150,7 +149,6 @@ def find_auth(msgs: list) -> dict | None:
 
 async def test_cross_client_session_continuity(ws_url: str, chat_url: str, api_url: str, token: str):
     """Test 1: Desktop connects, then mobile connects — both should share the same session."""
-    import websockets
 
     print(f"\n{'='*60}")
     print("TEST 1: Cross-client session continuity (desktop → mobile)")
@@ -338,7 +336,6 @@ async def test_chat_cross_client(ws_url: str, chat_url: str, token: str):
 
 async def test_client_api(api_url: str, ws_url: str, token: str):
     """Test 4: GET /clients API shows connected devices."""
-    import websockets
 
     print(f"\n{'='*60}")
     print("TEST 4: GET /clients API")

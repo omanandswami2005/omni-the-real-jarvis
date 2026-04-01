@@ -1311,8 +1311,8 @@ async def _process_event(
     # function_response event.
     #
     from app.tools.desktop_tools import SCREENSHOT_TOOL_NAMES, drain_pending_screenshots
-    from app.tools.image_gen import IMAGE_TOOL_NAMES, drain_pending_images
     from app.tools.genui_schema import RENDER_GENUI_TOOL_NAME, drain_pending_genui
+    from app.tools.image_gen import IMAGE_TOOL_NAMES, drain_pending_images
 
     # Track whether we already drained images in this event to prevent double delivery.
     _images_drained_this_event = False

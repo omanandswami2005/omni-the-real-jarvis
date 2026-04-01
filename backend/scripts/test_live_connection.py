@@ -6,16 +6,16 @@ Run from the backend directory:
 """
 
 import asyncio
-import sys
 import os
+import sys
 
 # Ensure the backend package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # ── Step 1: Load settings & export env vars (same as app.config) ──────
-from app.config import settings  # noqa: E402
+from app.config import settings
 
-print(f"[1/6] Settings loaded")
+print("[1/6] Settings loaded")
 print(f"      Project:  {settings.GOOGLE_CLOUD_PROJECT}")
 print(f"      Location: {settings.GOOGLE_CLOUD_LOCATION}")
 print(f"      Model:    {settings.LIVE_MODEL}")
@@ -26,7 +26,7 @@ async def main():
     # ── Step 2: Build a minimal agent (same model as production) ──────
     from google.adk.agents import Agent
 
-    print(f"\n[2/6] Creating minimal test agent...")
+    print("\n[2/6] Creating minimal test agent...")
     agent = Agent(
         name="test_agent",
         model=settings.LIVE_MODEL,
@@ -37,7 +37,7 @@ async def main():
     # ── Step 3: Create session service + session ──────────────────────
     from google.adk.sessions import InMemorySessionService
 
-    print(f"\n[3/6] Creating session...")
+    print("\n[3/6] Creating session...")
     session_service = InMemorySessionService()
     session = await session_service.create_session(
         app_name="test-live",
@@ -49,19 +49,19 @@ async def main():
     # ── Step 4: Create runner ─────────────────────────────────────────
     from google.adk.runners import Runner
 
-    print(f"\n[4/6] Creating runner...")
+    print("\n[4/6] Creating runner...")
     runner = Runner(
         app_name="test-live",
         agent=agent,
         session_service=session_service,
     )
-    print(f"      Runner ready")
+    print("      Runner ready")
 
     # ── Step 5: Build RunConfig (same as _build_run_config) ───────────
     from google.adk.agents.run_config import RunConfig, StreamingMode
     from google.genai import types
 
-    print(f"\n[5/6] Building RunConfig (same as production)...")
+    print("\n[5/6] Building RunConfig (same as production)...")
     run_config = RunConfig(
         streaming_mode=StreamingMode.BIDI,
         response_modalities=["AUDIO"],
@@ -81,13 +81,13 @@ async def main():
         proactivity=types.ProactivityConfig(proactive_audio=True),
         enable_affective_dialog=True,
     )
-    print(f"      RunConfig built")
+    print("      RunConfig built")
 
     # ── Step 6: run_live() — the actual connection test ───────────────
     from google.adk.agents.live_request_queue import LiveRequestQueue
 
-    print(f"\n[6/6] Calling runner.run_live() — connecting to Live API...")
-    print(f"      (This is where 'Establishing live connection' happens)\n")
+    print("\n[6/6] Calling runner.run_live() — connecting to Live API...")
+    print("      (This is where 'Establishing live connection' happens)\n")
 
     queue = LiveRequestQueue()
 
@@ -126,11 +126,11 @@ async def main():
                             print(f"  [audio] {len(part.inline_data.data)} bytes")
 
                 if event.turn_complete:
-                    print(f"\n  [turn_complete] — agent finished responding")
+                    print("\n  [turn_complete] — agent finished responding")
                     break
 
                 if event.interrupted:
-                    print(f"  [interrupted]")
+                    print("  [interrupted]")
 
     except TimeoutError:
         print(f"\n  TIMEOUT after {timeout}s — received {event_count} events")
@@ -145,14 +145,14 @@ async def main():
     print(f"\n{'='*60}")
     if event_count > 0 and got_text:
         print(f"  SUCCESS — Received {event_count} events with text/transcription")
-        print(f"  The Live API connection works correctly!")
+        print("  The Live API connection works correctly!")
     elif event_count > 0:
         print(f"  PARTIAL — Received {event_count} events (audio only, no text)")
-        print(f"  Connection works but no transcription text came through.")
+        print("  Connection works but no transcription text came through.")
     else:
-        print(f"  FAILED — No events received from run_live()")
-        print(f"  The connection is stuck at 'Establishing live connection'.")
-        print(f"  Check: credentials, project, model name, network/firewall.")
+        print("  FAILED — No events received from run_live()")
+        print("  The connection is stuck at 'Establishing live connection'.")
+        print("  Check: credentials, project, model name, network/firewall.")
     print(f"{'='*60}")
 
 

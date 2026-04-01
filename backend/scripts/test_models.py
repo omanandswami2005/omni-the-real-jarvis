@@ -1,9 +1,11 @@
-import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from google import genai
+
 from app.config import settings
+
 
 def main():
     print(f"Project: {settings.GOOGLE_CLOUD_PROJECT}, Location: {settings.GOOGLE_CLOUD_LOCATION}")
@@ -12,7 +14,7 @@ def main():
         project=settings.GOOGLE_CLOUD_PROJECT,
         location=settings.GOOGLE_CLOUD_LOCATION
     )
-    
+
     print("Listing all available models:")
     try:
         models = client.models.list()

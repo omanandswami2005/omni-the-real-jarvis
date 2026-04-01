@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import subprocess
-from typing import Any
 
 from src.plugin_registry import DesktopPlugin
 

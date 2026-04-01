@@ -35,6 +35,7 @@ SCREENSHOT_TOOL_NAMES = frozenset({
 
 
 def _queue_screenshot(user_id: str, b64: str, mime_type: str = "image/png", description: str = "") -> None:
+    """Queue a screenshot to be sent to the live API."""
     _pending_screenshots.setdefault(user_id, []).append({
         "tool_name": "desktop_screenshot",
         "image_base64": b64,
@@ -44,6 +45,7 @@ def _queue_screenshot(user_id: str, b64: str, mime_type: str = "image/png", desc
 
 
 def drain_pending_screenshots(user_id: str) -> list[dict]:
+    """Drain the pending screenshot queue for a user."""
     return _pending_screenshots.pop(user_id, [])
 
 
@@ -727,19 +729,26 @@ async def desktop_clipboard_read(user_id: str = "default") -> dict:
 
 
 async def desktop_clipboard_write(text: str, user_id: str = "default") -> dict:
-    """Write text to the desktop clipboard.
-
-    Args:
-        text: Text to copy to clipboard.
-        user_id: User identifier.
-
+    """
+    Copy the provided text into the remote desktop clipboard for the specified user.
+    
+    Parameters:
+        text (str): The text to place into the clipboard.
+        user_id (str): Identifier of the desktop/session to target.
+    
     Returns:
-        Confirmation.
+        dict: Confirmation object containing `copied` (True on success) and `length` (number of characters copied).
     """
     svc = get_e2b_desktop_service()
-    # Use printf to safely handle special characters
-    safe_text = text.replace("\\", "\\\\").replace("'", "'\\''")
-    await svc.run_command(user_id, f"printf '%s' '{safe_text}' | xclip -selection clipboard 2>/dev/null || printf '%s' '{safe_text}' | xsel --clipboard --input 2>/dev/null")
+    # Use base64 encoding to securely pass arbitrary text without command injection risk
+    b64_text = base64.b64encode(text.encode("utf-8")).decode("utf-8")
+    cmd = (
+        f"bash -c 'set -o pipefail; echo \"{b64_text}\" | base64 -d | xclip -selection clipboard 2>/dev/null || "
+        f"{{ set -o pipefail; echo \"{b64_text}\" | base64 -d | xsel --clipboard --input 2>/dev/null; }}'"
+    )
+    result = await svc.run_command(user_id, cmd)
+    if result.get("exit_code", -1) != 0:
+        return {"copied": False, "length": len(text)}
     return {"copied": True, "length": len(text)}
 
 

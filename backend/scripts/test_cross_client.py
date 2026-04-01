@@ -52,7 +52,7 @@ async def read_messages(ws, label: str, count: int = 5, timeout: float = 10.0):
             msg_type = data.get("type", "?")
             print(f"  [{label}] {msg_type}: {json.dumps(data, indent=None)[:200]}")
             msgs.append(data)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             print(f"  [{label}] (no more messages after {timeout}s)")
             break
         except Exception as e:

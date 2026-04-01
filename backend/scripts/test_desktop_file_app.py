@@ -31,7 +31,6 @@ import textwrap
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 # ── Load .env ────────────────────────────────────────────────────────
 _env_file = Path(__file__).parent.parent / ".env"
@@ -352,10 +351,7 @@ async def send_prompt_and_handle(ws, prompt: str, timeout: float = 90.0) -> dict
             elif mtype == "response" and (msg.get("data") or msg.get("content")):
                 has_response = True
 
-            elif mtype == "status" and msg.get("state") == "idle" and has_response:
-                break
-
-            elif mtype == "status" and msg.get("state") == "error":
+            elif (mtype == "status" and msg.get("state") == "idle" and has_response) or (mtype == "status" and msg.get("state") == "error"):
                 break
 
     except Exception as exc:
@@ -469,7 +465,7 @@ async def test_file_create(ws, results: dict) -> None:
         exec_ops = [t for t in result["tools_invoked"] if t["tool"] == "execute_command"]
         if exec_ops:
             print(green(f"\n      ✓ PASS ({result['elapsed']:.1f}s) — file created via execute_command"))
-            results["file_create"] = (True, f"via execute_command")
+            results["file_create"] = (True, "via execute_command")
         else:
             print(yellow(f"\n      ~ WARN ({result['elapsed']:.1f}s) — agent responded but may not have written file"))
             results["file_create"] = (True, "agent responded (indirect)")
@@ -681,7 +677,7 @@ async def run_tests(only: list[str] | None, backend_url: str) -> None:
     # Auth
     print(bold("  Authenticating..."))
     token = await get_token()
-    print(green(f"  Firebase auth OK") + dim(f"  (token: {token[:20]}...)"))
+    print(green("  Firebase auth OK") + dim(f"  (token: {token[:20]}...)"))
 
     tests_to_run = TESTS if not only else [t for t in TESTS if t["id"] in only]
     results: dict[str, tuple[bool, str]] = {}
@@ -721,7 +717,7 @@ async def run_tests(only: list[str] | None, backend_url: str) -> None:
                     await asyncio.sleep(1)
 
     except ConnectionRefusedError:
-        print(red(f"\n  Connection refused — is the backend running?"))
+        print(red("\n  Connection refused — is the backend running?"))
         sys.exit(1)
     except Exception as exc:
         print(red(f"\n  Error: {type(exc).__name__}: {exc}"))

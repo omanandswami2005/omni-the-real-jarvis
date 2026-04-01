@@ -44,14 +44,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import base64
 import json
 import os
 import sys
 import time
-import traceback
 from pathlib import Path
-from typing import Any
 
 # ── Load .env from backend root ───────────────────────────────────────
 _env_file = Path(__file__).parent.parent / ".env"
@@ -130,7 +127,7 @@ async def run_direct_tests() -> TestResults:
     print(bold("║  E2B Desktop — Direct Service Tests          ║"))
     print(bold("╚══════════════════════════════════════════════╝"))
 
-    from app.services.e2b_desktop_service import E2BDesktopService, DesktopStatus
+    from app.services.e2b_desktop_service import DesktopStatus, E2BDesktopService
 
     svc = E2BDesktopService()
     results = TestResults()
@@ -152,7 +149,7 @@ async def run_direct_tests() -> TestResults:
             print(dim(f"           Stream URL: {info.stream_url[:120]}"))
     except Exception as e:
         results.record("Create desktop", False, f"Exception: {e}")
-        print(red(f"\n  Cannot continue without a desktop. Aborting direct tests."))
+        print(red("\n  Cannot continue without a desktop. Aborting direct tests."))
         return results
 
     # ── Test 2: Get Status ──
@@ -541,7 +538,7 @@ async def run_api_tests() -> TestResults:
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(f"{BACKEND_URL}/api/v1/health")
-            print(green(f"    Backend reachable") + dim(f" ({r.status_code})"))
+            print(green("    Backend reachable") + dim(f" ({r.status_code})"))
     except Exception as e:
         print(red(f"    Backend unreachable: {e}"))
         return results

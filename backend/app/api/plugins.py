@@ -14,8 +14,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from app.middleware.auth_middleware import CurrentUser
 from app.api.ws_live import invalidate_runner
+from app.middleware.auth_middleware import CurrentUser
 from app.models.plugin import (
     PluginKind,
     PluginManifest,
