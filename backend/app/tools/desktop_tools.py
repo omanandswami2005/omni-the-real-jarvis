@@ -35,6 +35,7 @@ SCREENSHOT_TOOL_NAMES = frozenset({
 
 
 def _queue_screenshot(user_id: str, b64: str, mime_type: str = "image/png", description: str = "") -> None:
+    """Queue a screenshot to be sent to the live API."""
     _pending_screenshots.setdefault(user_id, []).append({
         "tool_name": "desktop_screenshot",
         "image_base64": b64,
@@ -44,6 +45,7 @@ def _queue_screenshot(user_id: str, b64: str, mime_type: str = "image/png", desc
 
 
 def drain_pending_screenshots(user_id: str) -> list[dict]:
+    """Drain the pending screenshot queue for a user."""
     return _pending_screenshots.pop(user_id, [])
 
 
@@ -739,10 +741,13 @@ async def desktop_clipboard_write(text: str, user_id: str = "default") -> dict:
     svc = get_e2b_desktop_service()
     # Use base64 encoding to securely pass arbitrary text without command injection risk
     b64_text = base64.b64encode(text.encode("utf-8")).decode("utf-8")
-    await svc.run_command(
-        user_id,
-        f"echo '{b64_text}' | base64 -d | xclip -selection clipboard 2>/dev/null || echo '{b64_text}' | base64 -d | xsel --clipboard --input 2>/dev/null"
+    cmd = (
+        f"set -o pipefail; echo '{b64_text}' | base64 -d | xclip -selection clipboard 2>/dev/null || "
+        f"{{ set -o pipefail; echo '{b64_text}' | base64 -d | xsel --clipboard --input 2>/dev/null; }}"
     )
+    result = await svc.run_command(user_id, cmd)
+    if result.get("exit_code", -1) != 0:
+        return {"copied": False, "length": len(text)}
     return {"copied": True, "length": len(text)}
 
 

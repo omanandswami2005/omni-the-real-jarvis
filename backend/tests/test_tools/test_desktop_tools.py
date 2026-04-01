@@ -22,6 +22,8 @@ _SVC = "app.tools.desktop_tools.get_e2b_desktop_service"
 
 
 def _mock_svc():
+    """Mock desktop service."""
+    """Mock the desktop service for testing."""
     svc = MagicMock()
     svc.screenshot = AsyncMock(return_value=b"\x89PNG fake")
     svc.left_click = AsyncMock()
@@ -35,20 +37,31 @@ def _mock_svc():
 
 
 class TestDesktopScreenshot:
+    """Tests."""
+    """Tests for DesktopScreenshot."""
     @pytest.mark.asyncio
     @patch(_SVC)
-    async def test_returns_image(self, mock_get_svc):
+    @patch("app.tools.desktop_tools._queue_screenshot")
+    async def test_returns_image(self, mock_queue, mock_get_svc):
+        """Test case."""
+        """Test method."""
         svc = _mock_svc()
         mock_get_svc.return_value = svc
         result = await desktop_screenshot(user_id="u1")
         assert "message" in result
         svc.screenshot.assert_awaited_once_with("u1")
+        # Ensure it enqueues the base64 image
+        mock_queue.assert_called_once_with("u1", "iVBORyBmYWtl", description="Desktop screenshot")
 
 
 class TestDesktopClick:
+    """Tests."""
+    """Tests for DesktopClick."""
     @pytest.mark.asyncio
     @patch(_SVC)
     async def test_sends_coordinates(self, mock_get_svc):
+        """Test case."""
+        """Test method."""
         svc = _mock_svc()
         mock_get_svc.return_value = svc
         result = await desktop_click(x=100, y=200, user_id="u1")
@@ -58,9 +71,13 @@ class TestDesktopClick:
 
 
 class TestDesktopType:
+    """Tests."""
+    """Tests for DesktopType."""
     @pytest.mark.asyncio
     @patch(_SVC)
     async def test_sends_text(self, mock_get_svc):
+        """Test case."""
+        """Test method."""
         svc = _mock_svc()
         mock_get_svc.return_value = svc
         result = await desktop_type(text="hello", user_id="u1")
@@ -69,9 +86,13 @@ class TestDesktopType:
 
 
 class TestDesktopHotkey:
+    """Tests."""
+    """Tests for DesktopHotkey."""
     @pytest.mark.asyncio
     @patch(_SVC)
     async def test_sends_key_combo(self, mock_get_svc):
+        """Test case."""
+        """Test method."""
         svc = _mock_svc()
         mock_get_svc.return_value = svc
         result = await desktop_hotkey(keys=["ctrl", "c"], user_id="u1")
@@ -80,9 +101,13 @@ class TestDesktopHotkey:
 
 
 class TestDesktopLaunch:
+    """Tests."""
+    """Tests for DesktopLaunch."""
     @pytest.mark.asyncio
     @patch(_SVC)
     async def test_sends_app_name(self, mock_get_svc):
+        """Test case."""
+        """Test method."""
         svc = _mock_svc()
         mock_get_svc.return_value = svc
         result = await desktop_launch(app_name="firefox", user_id="u1")
@@ -91,9 +116,13 @@ class TestDesktopLaunch:
 
 
 class TestDesktopBash:
+    """Tests."""
+    """Tests for DesktopBash."""
     @pytest.mark.asyncio
     @patch(_SVC)
     async def test_runs_command(self, mock_get_svc):
+        """Test case."""
+        """Test method."""
         svc = _mock_svc()
         mock_get_svc.return_value = svc
         result = await desktop_bash(command="echo hi", user_id="u1")
@@ -102,9 +131,13 @@ class TestDesktopBash:
 
 
 class TestDesktopClipboardWrite:
+    """Tests."""
+    """Tests for DesktopClipboardWrite."""
     @pytest.mark.asyncio
     @patch(_SVC)
     async def test_writes_clipboard(self, mock_get_svc):
+        """Test case."""
+        """Test method."""
         svc = _mock_svc()
         mock_get_svc.return_value = svc
         text = "hello '\"world\"'\n$(id)"
@@ -113,15 +146,24 @@ class TestDesktopClipboardWrite:
         assert result["copied"] is True
         assert result["length"] == len(text)
 
-        expected_cmd = f"echo '{b64_text}' | base64 -d | xclip -selection clipboard 2>/dev/null || echo '{b64_text}' | base64 -d | xsel --clipboard --input 2>/dev/null"
+        expected_cmd = (
+            f"set -o pipefail; echo '{b64_text}' | base64 -d | xclip -selection clipboard 2>/dev/null || "
+            f"{{ set -o pipefail; echo '{b64_text}' | base64 -d | xsel --clipboard --input 2>/dev/null; }}"
+        )
         svc.run_command.assert_awaited_once_with("u1", expected_cmd)
 
 class TestGetDesktopTools:
+    """Tests."""
+    """Tests for GetDesktopTools."""
     def test_returns_twenty_tools(self):
+        """Test case."""
+        """Test method."""
         tools = get_desktop_tools()
-        assert len(tools) >= 20
+        assert len(tools) == 27
 
     def test_tool_names(self):
+        """Test case."""
+        """Test method."""
         tools = get_desktop_tools()
         names = {t.name for t in tools}
         assert "desktop_screenshot" in names
