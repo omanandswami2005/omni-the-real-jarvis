@@ -9,6 +9,7 @@ Firestore collection: ``scheduled_tasks/{task_id}``
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 from dataclasses import dataclass
@@ -167,7 +168,7 @@ class ScheduledTask:
 class SchedulerService:
     """Manages scheduled tasks with Firestore persistence and Cloud Scheduler/Tasks integration."""
 
-    def __init__(self, db: firestore.Client | None = None) -> None:
+    def __init__(self, db: firestore.AsyncClient | None = None) -> None:
         self._db = db
         self._event_bus = get_event_bus()
         self._cron_task: asyncio.Task | None = None
@@ -175,9 +176,9 @@ class SchedulerService:
         self._poll_interval = 15.0
 
     @property
-    def db(self) -> firestore.Client:
+    def db(self) -> firestore.AsyncClient:
         if self._db is None:
-            self._db = firestore.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
+            self._db = firestore.AsyncClient(project=settings.GOOGLE_CLOUD_PROJECT or None)
         return self._db
 
     # ── CRUD ──────────────────────────────────────────────────────
@@ -200,7 +201,7 @@ class SchedulerService:
         )
 
         # Persist to Firestore
-        self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
+        await self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
 
         # Try to register with Cloud Scheduler for recurring tasks
         if params.schedule_type == "cron":
@@ -220,7 +221,7 @@ class SchedulerService:
         return task
 
     async def get_task(self, user_id: str, task_id: str) -> ScheduledTask | None:
-        snap = self.db.collection(COLLECTION).document(task_id).get()
+        snap = await self.db.collection(COLLECTION).document(task_id).get()
         if not snap.exists:
             return None
         data = snap.to_dict()
@@ -230,7 +231,7 @@ class SchedulerService:
 
     async def get_task_by_id(self, task_id: str) -> ScheduledTask | None:
         """Look up a task by ID only (no user ownership check). For internal callers."""
-        snap = self.db.collection(COLLECTION).document(task_id).get()
+        snap = await self.db.collection(COLLECTION).document(task_id).get()
         if not snap.exists:
             return None
         return ScheduledTask.from_firestore(task_id, snap.to_dict())
@@ -242,7 +243,7 @@ class SchedulerService:
             .order_by("created_at", direction=firestore.Query.DESCENDING)
         )
         tasks = []
-        for doc in query.stream():
+        async for doc in query.stream():
             tasks.append(ScheduledTask.from_firestore(doc.id, doc.to_dict()))
         return tasks
 
@@ -255,7 +256,7 @@ class SchedulerService:
         if task.cloud_scheduler_name:
             await self._delete_cloud_scheduler(task.cloud_scheduler_name)
 
-        self.db.collection(COLLECTION).document(task_id).delete()
+        await self.db.collection(COLLECTION).document(task_id).delete()
         logger.info("scheduled_task_deleted", task_id=task_id, user_id=user_id)
         await self._publish_event(user_id, "task_unscheduled", {"task_id": task_id})
         return True
@@ -266,7 +267,7 @@ class SchedulerService:
             return None
         task.status = "paused"
         task.updated_at = datetime.now(UTC)
-        self.db.collection(COLLECTION).document(task_id).set(task.to_firestore())
+        await self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
         if task.cloud_scheduler_name:
             await self._pause_cloud_scheduler(task.cloud_scheduler_name)
         return task
@@ -277,7 +278,7 @@ class SchedulerService:
             return None
         task.status = "active"
         task.updated_at = datetime.now(UTC)
-        self.db.collection(COLLECTION).document(task_id).set(task.to_firestore())
+        await self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
         if task.cloud_scheduler_name:
             await self._resume_cloud_scheduler(task.cloud_scheduler_name)
         return task
@@ -295,7 +296,7 @@ class SchedulerService:
         Returns:
             Dict with ``success``, ``output`` or ``error``, and ``execution_id``.
         """
-        snap = self.db.collection(COLLECTION).document(task_id).get()
+        snap = await self.db.collection(COLLECTION).document(task_id).get()
         if not snap.exists:
             return {"success": False, "error": "Task not found"}
 
@@ -331,7 +332,7 @@ class SchedulerService:
             if task.schedule_type == "once":
                 task.status = "completed"
 
-            self.db.collection(COLLECTION).document(task_id).set(task.to_firestore())
+            await self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
 
             # Store execution in history subcollection
             await self._record_execution(task, exec_id, True, output)
@@ -341,18 +342,24 @@ class SchedulerService:
                 await self._send_notification(task, output)
 
             # Publish execution event
-            await self._publish_event(task.user_id, "task_executed", {
-                "task_id": task.id,
-                "description": task.description,
-                "output": str(output)[:200],
-                "run_count": task.run_count,
-            })
+            await self._publish_event(
+                task.user_id,
+                "task_executed",
+                {
+                    "task_id": task.id,
+                    "description": task.description,
+                    "output": str(output)[:200],
+                    "run_count": task.run_count,
+                },
+            )
 
         except TimeoutError:
             error_msg = f"Execution timed out after {ScheduledTask.EXECUTION_TIMEOUT}s"
             result = {"success": False, "error": error_msg, "execution_id": exec_id}
             await self._handle_task_failure(task, exec_id, error_msg)
-            logger.error("scheduled_task_timeout", task_id=task_id, timeout=ScheduledTask.EXECUTION_TIMEOUT)
+            logger.error(
+                "scheduled_task_timeout", task_id=task_id, timeout=ScheduledTask.EXECUTION_TIMEOUT
+            )
 
         except Exception as exc:
             error_msg = str(exc)
@@ -387,7 +394,7 @@ class SchedulerService:
                 consecutive_failures=task.consecutive_failures,
             )
 
-        self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
+        await self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
         await self._record_execution(task, exec_id, False, error)
 
         # Notify on failure
@@ -399,15 +406,21 @@ class SchedulerService:
     ) -> None:
         """Write an execution record to the task's history subcollection."""
         try:
-            self.db.collection(COLLECTION).document(task.id).collection(
-                "executions"
-            ).document(exec_id).set({
-                "execution_id": exec_id,
-                "success": success,
-                "output": str(output)[:2000],
-                "executed_at": datetime.now(UTC),
-                "run_count": task.run_count,
-            })
+            await (
+                self.db.collection(COLLECTION)
+                .document(task.id)
+                .collection("executions")
+                .document(exec_id)
+                .set(
+                    {
+                        "execution_id": exec_id,
+                        "success": success,
+                        "output": str(output)[:2000],
+                        "executed_at": datetime.now(UTC),
+                        "run_count": task.run_count,
+                    }
+                )
+            )
         except Exception:
             logger.warning("execution_history_write_failed", task_id=task.id, exc_info=True)
 
@@ -665,7 +678,7 @@ class SchedulerService:
 
             client.create_job(request={"parent": parent, "job": job})
             task.cloud_scheduler_name = job_name
-            self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
+            await self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
             logger.info("cloud_scheduler_registered", task_id=task.id, job_name=job_name)
         except Exception:
             logger.warning(
@@ -728,10 +741,8 @@ class SchedulerService:
         self._cron_running = False
         if self._cron_task:
             self._cron_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._cron_task
-            except asyncio.CancelledError:
-                pass
             self._cron_task = None
             logger.info("local_cron_stopped")
 
@@ -747,11 +758,10 @@ class SchedulerService:
     async def _check_and_run_due_tasks(self) -> None:
         """Find all active cron tasks that are due and execute them."""
         now = datetime.now(UTC)
-        query = (
-            self.db.collection(COLLECTION)
-            .where(filter=firestore.FieldFilter("status", "==", "active"))
+        query = self.db.collection(COLLECTION).where(
+            filter=firestore.FieldFilter("status", "==", "active")
         )
-        for doc in query.stream():
+        async for doc in query.stream():
             task = ScheduledTask.from_firestore(doc.id, doc.to_dict())
             if not task.schedule:
                 continue
