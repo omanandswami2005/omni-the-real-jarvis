@@ -41,8 +41,15 @@ class _FakeCollectionRef:
     def document(self, doc_id):
         return _FakeDocRef(self._store, self._col, doc_id)
 
-    def where(self, field, op, value):
-        return _FakeQuery(self._store, self._col, field, op, value)
+    def where(self, field=None, op=None, value=None, filter=None):
+        if filter is not None:
+            field = filter.field_path
+            op = filter.op_string
+            value = filter.value
+
+        # Manually construct instead of passing unsupported args
+        new_col = _FakeQuery(self._store, self._col, field, op, value, getattr(self, '_order_field', None))
+        return new_col
 
     def order_by(self, field, direction=None):
         return _FakeQuery(self._store, self._col, order_field=field)
@@ -80,8 +87,15 @@ class _FakeQuery:
         self._value = value
         self._order_field = order_field
 
-    def where(self, field, op, value):
-        return _FakeQuery(self._store, self._col, field, op, value)
+    def where(self, field=None, op=None, value=None, filter=None):
+        if filter is not None:
+            field = filter.field_path
+            op = filter.op_string
+            value = filter.value
+
+        # Manually construct instead of passing unsupported args
+        new_col = _FakeQuery(self._store, self._col, field, op, value, getattr(self, '_order_field', None))
+        return new_col
 
     def order_by(self, field, direction=None):
         self._order_field = field
@@ -89,12 +103,15 @@ class _FakeQuery:
 
     def stream(self):
         results = []
-        for doc_id, data in self._store.get(self._col, {}).items():
+        source = self._docs if hasattr(self, "_docs") else self._store.get(self._col, {})
+        for doc_id, data in source.items():
             if self._field and self._op == "==" and data.get(self._field) != self._value:
                 continue
             results.append(FakeDocSnap(doc_id, data))
+
         if self._order_field:
-            results.sort(key=lambda s: s.to_dict().get(self._order_field, ""), reverse=True)
+            results.sort(key=lambda s: s._data.get(self._order_field, ""), reverse=True)
+
         return results
 
 
