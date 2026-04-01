@@ -123,7 +123,16 @@ class OAuthService:
         plugin_id: str,
         session_data: OAuthSessionData,
     ) -> None:
-        """Persist OAuth tokens + client credentials to GCP Secret Manager."""
+        """
+        Persist OAuth session data (tokens, optional client credentials, and endpoints) to secret storage.
+        
+        Converts the session's monotonic `expires_at` to a wall-clock Unix timestamp for storage, writes the access token, token type, scope, optional refresh token, optional client_id/client_secret, and optional token_endpoint/issuer into the secret service under the key "{plugin_id}-mcp-oauth". On success logs an informational event; on failure logs a warning and suppresses the exception.
+        
+        Parameters:
+            user_id: Identifier of the user owning the session; used as the secret namespace.
+            plugin_id: Identifier of the plugin; used to form the secret name suffix ("{plugin_id}-mcp-oauth").
+            session_data: Bundle containing `tokens` (access/refresh/expires_at/scope), optional `client_creds`, and optional `token_endpoint` and `issuer`.
+        """
         # Convert monotonic expires_at → wall-clock unix time for portability
         if session_data.tokens.expires_at > 0:
             expires_at_unix = time.time() + max(
@@ -161,9 +170,15 @@ class OAuthService:
             )
 
     def _load_from_secret_manager(self, user_id: str, plugin_id: str) -> OAuthSessionData | None:
-        """Load OAuth tokens + client credentials from GCP Secret Manager.
-
-        Returns OAuthSessionData or None if not found.
+        """
+        Load and reconstruct OAuth session data (tokens, optional client credentials, and stored endpoints) from secret storage.
+        
+        Parameters:
+        	user_id (str): Identifier for the user whose secrets are being loaded.
+        	plugin_id (str): Plugin identifier used as the secret name prefix (secret key: "{plugin_id}-mcp-oauth").
+        
+        Returns:
+        	OAuthSessionData | None: An OAuthSessionData instance containing restored `tokens`, optional `client_creds`, `token_endpoint`, and `issuer` when secrets exist and contain an access or refresh token; `None` if no usable secrets are found or on error.
         """
         try:
             data = secret_service.load_secrets(user_id, f"{plugin_id}-mcp-oauth")
@@ -363,7 +378,18 @@ class OAuthService:
     # ── Handle Callback ─────────────────────────────────────────
 
     async def handle_callback(self, code: str, state: str) -> tuple[str, str]:
-        """Exchange authorization code for tokens. Returns (user_id, plugin_id)."""
+        """
+        Complete an OAuth authorization-code exchange and persist received tokens.
+        
+        Exchanges the provided authorization code for access (and optional refresh) tokens using the pending OAuth flow identified by `state`, stores the tokens in memory and persistent secret storage, and returns the identifiers associated with the completed flow.
+        
+        Raises:
+            ValueError: If `state` is not associated with any pending OAuth flow.
+            RuntimeError: If the token endpoint returns a non-200 response or the token response lacks an `access_token`.
+        
+        Returns:
+            tuple[str, str]: A tuple `(user_id, plugin_id)` identifying the flow that was completed.
+        """
         flow = self._pending.pop(state, None)
         if flow is None:
             raise ValueError("Invalid or expired OAuth state")
@@ -425,7 +451,15 @@ class OAuthService:
     # ── Token Access ────────────────────────────────────────────
 
     def get_access_token(self, user_id: str, plugin_id: str) -> str | None:
-        """Return the current access token, or None if not authenticated."""
+        """
+        Get the current access token for the specified user and plugin.
+        
+        If the token is not present in memory, attempts to load session data from the secret manager;
+        on success caches the loaded tokens and associated client credentials.
+        
+        Returns:
+            access_token (str): The access token string if available, `None` otherwise.
+        """
         key = (user_id, plugin_id)
         tokens = self._tokens.get(key)
         if tokens is None:
@@ -442,7 +476,14 @@ class OAuthService:
         return tokens.access_token
 
     def has_valid_token(self, user_id: str, plugin_id: str) -> bool:
-        """Check if we have a non-expired token."""
+        """
+        Determine whether a valid (not expired) access token exists for the given user and plugin.
+        
+        If no in-memory token is found, attempts to load session data from the secret manager and caches loaded tokens and client credentials. Returns `true` only if tokens are present and either have no expiry or their expiry is in the future.
+        
+        Returns:
+            `true` if a valid (not expired) access token is available for the given user and plugin, `false` otherwise.
+        """
         key = (user_id, plugin_id)
         tokens = self._tokens.get(key)
         if tokens is None:
@@ -464,7 +505,14 @@ class OAuthService:
         plugin_id: str,
         mcp_server_url: str,
     ) -> str | None:
-        """Refresh the access token if expired. Returns the (possibly new) access token."""
+        """
+        Ensure a valid access token for the given user and plugin by refreshing it if necessary.
+        
+        If tokens are not present in memory this will attempt to load persisted session data. If the current access token is still valid it is returned. If the token is expired and a refresh token and client credentials are available, a refresh request is performed and the updated tokens and metadata are persisted. If refresh cannot be performed or fails, in-memory tokens are removed; when the authorization server returns `invalid_grant`, persisted secrets are also deleted.
+        
+        Returns:
+            str: The access token if available after this call, `None` otherwise.
+        """
         key = (user_id, plugin_id)
         tokens = self._tokens.get(key)
 
