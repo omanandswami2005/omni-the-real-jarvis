@@ -729,14 +729,15 @@ async def desktop_clipboard_read(user_id: str = "default") -> dict:
 
 
 async def desktop_clipboard_write(text: str, user_id: str = "default") -> dict:
-    """Write text to the desktop clipboard.
-
-    Args:
-        text: Text to copy to clipboard.
-        user_id: User identifier.
-
+    """
+    Copy the provided text into the remote desktop clipboard for the specified user.
+    
+    Parameters:
+        text (str): The text to place into the clipboard.
+        user_id (str): Identifier of the desktop/session to target.
+    
     Returns:
-        Confirmation.
+        dict: Confirmation object containing `copied` (True on success) and `length` (number of characters copied).
     """
     svc = get_e2b_desktop_service()
     # Use base64 encoding to securely pass arbitrary text without command injection risk
