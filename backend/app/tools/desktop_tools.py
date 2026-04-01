@@ -743,8 +743,8 @@ async def desktop_clipboard_write(text: str, user_id: str = "default") -> dict:
     # Use base64 encoding to securely pass arbitrary text without command injection risk
     b64_text = base64.b64encode(text.encode("utf-8")).decode("utf-8")
     cmd = (
-        f"set -o pipefail; echo '{b64_text}' | base64 -d | xclip -selection clipboard 2>/dev/null || "
-        f"{{ set -o pipefail; echo '{b64_text}' | base64 -d | xsel --clipboard --input 2>/dev/null; }}"
+        f"bash -c 'set -o pipefail; echo \"{b64_text}\" | base64 -d | xclip -selection clipboard 2>/dev/null || "
+        f"{{ set -o pipefail; echo \"{b64_text}\" | base64 -d | xsel --clipboard --input 2>/dev/null; }}'"
     )
     result = await svc.run_command(user_id, cmd)
     if result.get("exit_code", -1) != 0:
