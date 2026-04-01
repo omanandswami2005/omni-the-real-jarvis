@@ -23,7 +23,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 
 async def main():
-    from app.services.scheduler_service import get_scheduler_service
+    from app.services.scheduler_service import ScheduledTaskCreateParams, get_scheduler_service
 
     svc = get_scheduler_service()
     user_id = "test_cron_user"
@@ -31,11 +31,13 @@ async def main():
     print("[1/5] Creating scheduled task (every minute cron)...")
     task = await svc.create_task(
         user_id=user_id,
-        description="Test cron job — echo hello",
-        action="run_agent_query",
-        schedule="* * * * *",  # every minute
-        schedule_type="cron",
-        action_params={"query": "Say 'Hello from cron!' and nothing else."},
+        params=ScheduledTaskCreateParams(
+            description="Test cron job — echo hello",
+            action="run_agent_query",
+            schedule="* * * * *",  # every minute
+            schedule_type="cron",
+            action_params={"query": "Say 'Hello from cron!' and nothing else."},
+        )
     )
     print(f"       Task ID: {task.id}")
     print(f"       Schedule: {task.schedule}")
