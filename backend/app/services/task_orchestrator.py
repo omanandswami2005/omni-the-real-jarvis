@@ -62,7 +62,7 @@ _MCP_HINT_KEYWORDS: dict[str, list[str]] = {
 class TaskOrchestrator:
     """Manages PlannedTask lifecycle with Firestore persistence and async execution."""
 
-    def __init__(self, db: firestore.Client | None = None) -> None:
+    def __init__(self, db: firestore.AsyncClient | None = None) -> None:
         self._db = db
         self._event_bus = get_event_bus()
         # In-flight task execution handles: {task_id: asyncio.Task}
@@ -71,9 +71,9 @@ class TaskOrchestrator:
         self._pending_inputs: dict[str, asyncio.Future] = {}
 
     @property
-    def db(self) -> firestore.Client:
+    def db(self) -> firestore.AsyncClient:
         if self._db is None:
-            self._db = firestore.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
+            self._db = firestore.AsyncClient(project=settings.GOOGLE_CLOUD_PROJECT or None)
         return self._db
 
     # ── Firestore CRUD ────────────────────────────────────────────────
@@ -81,11 +81,11 @@ class TaskOrchestrator:
     async def _save_task(self, task: PlannedTask) -> None:
         """Persist task state to Firestore."""
         task.updated_at = datetime.now(UTC)
-        self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
+        await self.db.collection(COLLECTION).document(task.id).set(task.to_firestore())
 
     async def get_task(self, user_id: str, task_id: str) -> PlannedTask | None:
         """Load a task from Firestore, verifying ownership."""
-        snap = self.db.collection(COLLECTION).document(task_id).get()
+        snap = await self.db.collection(COLLECTION).document(task_id).get()
         if not snap.exists:
             return None
         data = snap.to_dict()
@@ -103,7 +103,7 @@ class TaskOrchestrator:
             )
             return [
                 PlannedTask.from_firestore(snap.id, snap.to_dict())
-                for snap in query.stream()
+                async for snap in query.stream()
             ]
         except Exception:
             # Fallback: query without order_by (no composite index)
@@ -114,7 +114,7 @@ class TaskOrchestrator:
             )
             tasks = [
                 PlannedTask.from_firestore(snap.id, snap.to_dict())
-                for snap in query.stream()
+                async for snap in query.stream()
             ]
             tasks.sort(key=lambda t: t.created_at, reverse=True)
             return tasks
@@ -122,7 +122,7 @@ class TaskOrchestrator:
     async def _update_task_field(self, task_id: str, **fields) -> None:
         """Atomic field update on a task doc."""
         fields["updated_at"] = datetime.now(UTC)
-        self.db.collection(COLLECTION).document(task_id).update(fields)
+        await self.db.collection(COLLECTION).document(task_id).update(fields)
 
     # ── Task Creation ─────────────────────────────────────────────────
 
@@ -483,7 +483,7 @@ class TaskOrchestrator:
         )
 
         # Save to Firestore
-        self.db.collection(COLLECTION).document(task.id).collection("inputs").document(
+        await self.db.collection(COLLECTION).document(task.id).collection("inputs").document(
             human_input.id
         ).set(human_input.to_firestore())
 
@@ -503,9 +503,9 @@ class TaskOrchestrator:
             response = await asyncio.wait_for(future, timeout=600)  # 10 min timeout
         except TimeoutError:
             human_input.status = InputStatus.EXPIRED
-            self.db.collection(COLLECTION).document(task.id).collection("inputs").document(
-                human_input.id
-            ).update({"status": "expired"})
+            await self.db.collection(COLLECTION).document(task.id).collection("inputs").document(
+            human_input.id
+        ).update({"status": "expired"})
             raise
         finally:
             self._pending_inputs.pop(human_input.id, None)
@@ -520,7 +520,7 @@ class TaskOrchestrator:
 
         # Update Firestore
         now = datetime.now(UTC)
-        self.db.collection(COLLECTION).document(task_id).collection("inputs").document(
+        await self.db.collection(COLLECTION).document(task_id).collection("inputs").document(
             input_id
         ).update({
             "response": response,
@@ -595,7 +595,7 @@ class TaskOrchestrator:
         # Cancel if running
         if task.status in (TaskStatus.RUNNING, TaskStatus.PAUSED):
             await self.cancel_task(user_id, task_id)
-        self.db.collection(COLLECTION).document(task_id).delete()
+        await self.db.collection(COLLECTION).document(task_id).delete()
         logger.info("task_deleted", task_id=task_id)
         return True
 
