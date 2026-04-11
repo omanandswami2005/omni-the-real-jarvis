@@ -176,6 +176,21 @@ export function VoiceProvider({ children }) {
         }
     }, [isRecording, isVideoActive, isScreenSharing, stopRecordingAndRelease, stopCapture, sendControl]);
 
+    // Stop response generation — cancels audio, clears actions, resets to idle.
+    // Sends interruption to backend so the model stops producing output.
+    // Session continues normally — next message triggers a new turn.
+    const stopGeneration = useCallback(() => {
+        // 1. Stop audio playback and clear queued audio
+        stopPlayback();
+        useChatStore.getState().clearAudioQueue?.();
+        // 2. Cancel all pending tool actions in the UI
+        useChatStore.getState().cancelAllActions();
+        // 3. Reset agent state to idle so input is re-enabled
+        useChatStore.getState().setAgentState('idle');
+        // 4. Send stop signal to backend
+        sendControl('stop');
+    }, [stopPlayback, sendControl]);
+
     // Global keyboard shortcuts
     useKeyboard({
         escape: stopAll,
@@ -226,6 +241,7 @@ export function VoiceProvider({ children }) {
             stopPlayback,
             stopCapture,
             stopAll,
+            stopGeneration,
         }),
         [
             sendText, sendAudio, sendImage, sendControl, isConnected, disconnect,
@@ -234,7 +250,7 @@ export function VoiceProvider({ children }) {
             isScreenSharing, isCameraOn, isVideoActive, videoSource, getPreviewStream,
             permissionError, clearPermissionError,
             toggleRecording, toggleMute, toggleVoice, toggleScreen, toggleCamera,
-            flipCamera, stopPlayback, stopCapture, stopAll,
+            flipCamera, stopPlayback, stopCapture, stopAll, stopGeneration,
         ],
     );
 

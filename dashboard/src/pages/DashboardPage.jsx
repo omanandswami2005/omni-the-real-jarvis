@@ -129,6 +129,7 @@ export default function DashboardPage() {
             <div className="flex-1">
                 <ChatPanel
                     onSend={voice.sendText}
+                    onStop={voice.stopGeneration}
                     isRecording={voice.isRecording}
                     captureVolume={voice.captureVolume}
                     playbackVolume={voice.playbackVolume}

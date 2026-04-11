@@ -15,6 +15,7 @@ const PAGE_SIZE = 30;
 
 export default function ChatPanel({
   onSend,
+  onStop,
   isRecording,
   captureVolume,
   playbackVolume,
@@ -158,6 +159,7 @@ export default function ChatPanel({
       <div className="border-t border-white/[0.06] p-3">
         <ChatInput
           onSend={onSend}
+          onStop={onStop}
           disabled={agentState === 'speaking'}
           disconnected={!isChatConnected}
         />

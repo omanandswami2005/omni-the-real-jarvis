@@ -46,11 +46,11 @@ class ValidationError(OmniError):
         super().__init__(message=message, status_code=422)
 
 
-class RateLimitError(OmniError):
-    """Too many requests."""
-
-    def __init__(self, message: str = "Rate limit exceeded"):
-        super().__init__(message=message, status_code=429)
+# class RateLimitError(OmniError):
+#     """Too many requests."""
+#
+#     def __init__(self, message: str = "Rate limit exceeded"):
+#         super().__init__(message=message, status_code=429)
 
 
 class MCPConnectionError(OmniError):

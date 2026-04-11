@@ -21,6 +21,10 @@ export function useWebSocket() {
   const reconnectTimer = useRef(null);
   const intentionalClose = useRef(false);
   const connectGenRef = useRef(0);
+  // Debounce session_suggestion reconnects to prevent thrashing when multiple
+  // tabs or devices broadcast suggestions in quick succession.
+  const lastSuggestionReconnectRef = useRef(0);
+  const SUGGESTION_RECONNECT_COOLDOWN_MS = 5000;
   // True once the server has granted the mic floor to this client.
   // sendAudio drops frames until this is true, preventing audio from reaching
   // ADK before the explicit mic_acquire handshake completes.
@@ -64,6 +68,9 @@ export function useWebSocket() {
 
     // Bail if a newer connect() or disconnect() happened while we awaited
     if (connectGenRef.current !== gen || intentionalClose.current) return;
+    // Bail if the auth user changed while we were awaiting the token
+    // (prevents connecting with stale credentials after an account switch)
+    if (auth.currentUser?.uid !== fbUser.uid) return;
 
     const ws = createLiveConnection();
     ws.binaryType = 'arraybuffer';
@@ -121,6 +128,11 @@ export function useWebSocket() {
               const ss = useSessionStore.getState();
               // Guard: don't reconnect if already on this session
               if (ss.activeSessionId === msg.session_id) break;
+              // Debounce: don't reconnect if we just did one recently
+              const now = Date.now();
+              if (now - lastSuggestionReconnectRef.current < SUGGESTION_RECONNECT_COOLDOWN_MS) break;
+              lastSuggestionReconnectRef.current = now;
+
               ss.setActiveSession(msg.session_id);
               ss.ensureSession(msg.session_id);
               setServerSessionId(msg.session_id);
@@ -151,6 +163,9 @@ export function useWebSocket() {
         }
         return;
       }
+
+      // Any message from the server means it's alive — clear response timeout
+      if (responseTimeoutRef.current) clearResponseTimeout();
 
       switch (msg.type) {
         case 'audio':
@@ -295,18 +310,23 @@ export function useWebSocket() {
           if (msg.session_id && !isSelfBroadcast) {
             const ss = useSessionStore.getState();
             if (ss.activeSessionId !== msg.session_id) {
-              ss.setActiveSession(msg.session_id);
-              ss.ensureSession(msg.session_id);
-              setServerSessionId(msg.session_id);
-              // Delay reconnect slightly so store has time to update
-              setTimeout(() => {
-                if (wsRef.current) {
-                  wsRef.current.onclose = null;
-                  wsRef.current.close();
-                  wsRef.current = null;
-                }
-                connect();
-              }, 100);
+              // Debounce: prevent reconnect thrashing from rapid suggestions
+              const now = Date.now();
+              if (now - lastSuggestionReconnectRef.current >= SUGGESTION_RECONNECT_COOLDOWN_MS) {
+                lastSuggestionReconnectRef.current = now;
+                ss.setActiveSession(msg.session_id);
+                ss.ensureSession(msg.session_id);
+                setServerSessionId(msg.session_id);
+                // Delay reconnect slightly so store has time to update
+                setTimeout(() => {
+                  if (wsRef.current) {
+                    wsRef.current.onclose = null;
+                    wsRef.current.close();
+                    wsRef.current = null;
+                  }
+                  connect();
+                }, 100);
+              }
             }
           }
           if (!isSelfBroadcast) {
@@ -401,6 +421,16 @@ export function useWebSocket() {
     };
   }, [connect, disconnect]);
 
+  // Timeout ref: if the backend never responds after sending text, reset and notify user
+  const responseTimeoutRef = useRef(null);
+  const RESPONSE_TIMEOUT_MS = 20_000; // 20 seconds
+
+  // Clear response timeout when any server message arrives (status, response, tool_call, etc.)
+  const clearResponseTimeout = useCallback(() => {
+    clearTimeout(responseTimeoutRef.current);
+    responseTimeoutRef.current = null;
+  }, []);
+
   const sendText = useCallback((text) => {
     // Add user message to chat immediately (optimistic)
     useChatStore.getState().addMessage({
@@ -411,16 +441,38 @@ export function useWebSocket() {
     });
 
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      // Immediately show processing state (optimistic) so the user sees feedback
+      useChatStore.getState().setAgentState('processing');
       sendJsonMessage(wsRef.current, { type: 'text', content: text });
+
+      // Start a response timeout — if backend never responds, notify user
+      clearTimeout(responseTimeoutRef.current);
+      responseTimeoutRef.current = setTimeout(() => {
+        const current = useChatStore.getState().agentState;
+        if (current === 'processing') {
+          useChatStore.getState().setAgentState('idle');
+          useChatStore.getState().cancelAllActions();
+          toast.error('No response from the server. Please check your connection and try again.', { duration: 6000 });
+          useChatStore.getState().addMessage({
+            id: `timeout-${Date.now()}`,
+            role: 'system',
+            type: 'error',
+            content: 'No response received — the server may be unavailable. Please try again.',
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }, RESPONSE_TIMEOUT_MS);
     } else {
       useChatStore.getState().addMessage({
         id: `err-${Date.now()}`,
         role: 'system',
-        content: 'Message could not be sent — reconnecting…',
+        type: 'error',
+        content: 'Message could not be sent — connection lost. Reconnecting…',
         timestamp: new Date().toISOString(),
       });
+      toast.error('Not connected. Attempting to reconnect…', { duration: 4000 });
     }
-  }, []);
+  }, [clearResponseTimeout]);
 
   const sendAudio = useCallback((pcm16Buffer) => {
     // Only forward audio frames after the server has granted the mic floor.
@@ -453,7 +505,9 @@ export function useWebSocket() {
     sendJsonMessage(wsRef.current, { type: 'mic_release' });
   }, []);
 
-  // ── Watchdog: auto-reset if agentState stays "processing" for >30s ──
+  // ── Watchdog: auto-reset if agentState stays "processing" for >45s ──
+  // Extended from 30s to 45s to allow complex tool chains to complete,
+  // but now surfaces an error message to the user instead of silently resetting.
   const watchdogRef = useRef(null);
   useEffect(() => {
     let prev = useChatStore.getState().agentState;
@@ -467,8 +521,16 @@ export function useWebSocket() {
             if (current === 'processing') {
               useChatStore.getState().setAgentState('idle');
               useChatStore.getState().cancelAllActions();
+              toast.warning('Response is taking too long. The request may have timed out.', { duration: 5000 });
+              useChatStore.getState().addMessage({
+                id: `watchdog-${Date.now()}`,
+                role: 'system',
+                type: 'error',
+                content: 'Response timed out — the AI may be overloaded. Please try again.',
+                timestamp: new Date().toISOString(),
+              });
             }
-          }, 30_000);
+          }, 45_000);
         }
       }
     });

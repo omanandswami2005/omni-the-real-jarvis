@@ -2,17 +2,26 @@
  * useAuth — Firebase auth state listener with auto-token-refresh.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as fbSignOut } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { useAuthStore } from '@/stores/authStore';
+import { resetAllUserStores } from '@/lib/resetStores';
 
 export function useAuth() {
   const { user, token, loading, setUser, logout, setLoading } = useAuthStore();
+  const prevUidRef = useRef(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
+        // Detect account switch: if UID changed, clear all user-scoped stores
+        // so the new user never sees stale data from the previous account.
+        if (prevUidRef.current && prevUidRef.current !== fbUser.uid) {
+          resetAllUserStores();
+        }
+        prevUidRef.current = fbUser.uid;
+
         const idToken = await fbUser.getIdToken();
         setUser(
           {
@@ -24,6 +33,11 @@ export function useAuth() {
           idToken,
         );
       } else {
+        // User signed out — clear everything
+        if (prevUidRef.current) {
+          resetAllUserStores();
+          prevUidRef.current = null;
+        }
         logout();
       }
     });
@@ -60,6 +74,9 @@ export function useAuth() {
     } catch (error) {
       console.error('Sign out error:', error);
     } finally {
+      // Clear all user-scoped stores immediately (safety net — onAuthStateChanged
+      // also clears, but this fires synchronously on explicit sign-out)
+      resetAllUserStores();
       // Clear all Firebase auth data from localStorage and sessionStorage
       try {
         for (const key in localStorage) {

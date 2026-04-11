@@ -641,6 +641,12 @@ async def _upstream(
                         parts=[types.Part(text=content_str)],
                         role="user",
                     )
+                    # Send PROCESSING status immediately so the UI shows a loading indicator
+                    # before the live model starts emitting events.
+                    with contextlib.suppress(Exception):
+                        await websocket.send_text(
+                            StatusMessage(state=AgentState.PROCESSING).model_dump_json()
+                        )
                     queue.send_content(content)
                     # Lazy Firestore session creation on first user message
                     if not _fs_ref[0] and content_str.strip():
@@ -735,6 +741,18 @@ async def _upstream(
                         logger.info(
                             "voice_toggle", user_id=user_id, enabled=data.get("voice_enabled", True)
                         )
+                    elif action == "stop":
+                        # User pressed Stop — inject a system-level interrupt message
+                        # so the model stops generating. Frontend clears its UI state.
+                        logger.info("user_stop_requested", user_id=user_id)
+                        _stop_content = types.Content(
+                            role="user",
+                            parts=[types.Part(text="[System]: User pressed Stop. Cease output immediately. Acknowledge with one word: 'Stopped.'")],
+                        )
+                        try:
+                            queue.send_content(_stop_content)
+                        except Exception:
+                            pass
                 elif msg_type == "mic_acquire":
                     # Explicit mic floor request — client sends this before streaming audio.
                     # Preferred over the fallback auto-acquire on first binary frame because it
@@ -1363,16 +1381,17 @@ async def _process_event(
             # output, but in practice the Gemini Live API sometimes
             # sends turn_complete without producing audio.  To guarantee
             # the user always sees the result, forward the text now.
-            # If the model *does* also speak, the transcription appears
-            # as a companion; if not, this is the only output.
+            # Always use COMPANION so the result renders as a reference
+            # card.  If the model also speaks, the audio transcription
+            # becomes the primary chat message and the companion is
+            # supplementary — avoiding duplicate "text + transcription".
             _persona_text = str(fr.response) if fr.response else ""
             if _persona_text:
-                _ct = ContentType.COMPANION if _has_rich_content(_persona_text) else ContentType.TEXT
-                _pmsg = AgentResponse(content_type=_ct, data=_persona_text)
+                _pmsg = AgentResponse(content_type=ContentType.COMPANION, data=_persona_text)
                 _pjson = _pmsg.model_dump_json()
                 await websocket.send_text(_pjson)
                 await _publish(bus, user_id, _pjson)
-                logger.info("persona_result_forwarded", agent=fr.name, ct=_ct, chars=len(_persona_text))
+                logger.info("persona_result_forwarded", agent=fr.name, ct="companion", chars=len(_persona_text))
 
             # Signal transfer back to root for dashboard UX
             transfer_back = AgentTransferMessage(to_agent="omni_root", message="")
@@ -2057,6 +2076,19 @@ async def ws_chat(websocket: WebSocket) -> None:
             try:
                 data = json.loads(raw)
             except json.JSONDecodeError:
+                continue
+
+            # Handle stop/control messages
+            if data.get("type") == "control":
+                action = data.get("action", "")
+                if action == "stop" and _active_turn and not _active_turn.done():
+                    logger.info("user_stop_requested_chat", user_id=user.uid)
+                    _active_turn.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await _active_turn
+                    idle_msg = StatusMessage(state=AgentState.IDLE, detail="Stopped by user")
+                    with contextlib.suppress(Exception):
+                        await websocket.send_text(idle_msg.model_dump_json())
                 continue
 
             if data.get("type") != "text" or not data.get("content", "").strip():
