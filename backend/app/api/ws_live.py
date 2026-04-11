@@ -1360,6 +1360,22 @@ async def _process_event(
                     await websocket.send_text(sj)
                     await _publish(bus, user_id, sj)
 
+            # ── Send persona result text to frontend ─────────────────
+            # The model MAY generate audio to summarise the persona's
+            # output, but in practice the Gemini Live API sometimes
+            # sends turn_complete without producing audio.  To guarantee
+            # the user always sees the result, forward the text now.
+            # If the model *does* also speak, the transcription appears
+            # as a companion; if not, this is the only output.
+            _persona_text = str(fr.response) if fr.response else ""
+            if _persona_text:
+                _ct = ContentType.COMPANION if _has_rich_content(_persona_text) else ContentType.TEXT
+                _pmsg = AgentResponse(content_type=_ct, data=_persona_text)
+                _pjson = _pmsg.model_dump_json()
+                await websocket.send_text(_pjson)
+                await _publish(bus, user_id, _pjson)
+                logger.info("persona_result_forwarded", agent=fr.name, ct=_ct, chars=len(_persona_text))
+
             # Signal transfer back to root for dashboard UX
             transfer_back = AgentTransferMessage(to_agent="omni_root", message="")
             tj = transfer_back.model_dump_json()

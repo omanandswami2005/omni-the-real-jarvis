@@ -27,7 +27,9 @@ load_dotenv()
 
 # ── Config ──────────────────────────────────────────────────────────
 TOKEN = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
-PACKAGE = "@modelcontextprotocol/server-github"
+# New official GitHub MCP server (Go binary), replaces deprecated @modelcontextprotocol/server-github
+BINARY = "github-mcp-server.exe"
+BIN_DIR = os.path.join(os.path.dirname(__file__), "..", "bin")
 
 # ── ANSI helpers ────────────────────────────────────────────────────
 GREEN = "\033[92m"
@@ -58,7 +60,7 @@ async def main() -> None:
     print(f"\n{BOLD}{'='*60}{RESET}")
     print(f"{BOLD}  GitHub MCP Server Test{RESET}")
     print(f"{BOLD}{'='*60}{RESET}")
-    print(f"  Package : {PACKAGE}")
+    print(f"  Binary  : {BINARY}")
     print(f"  Token   : {'***' + TOKEN[-4:] if TOKEN else '(not set)'}")
     print()
 
@@ -75,13 +77,18 @@ async def main() -> None:
         from google.adk.tools.mcp_tool.mcp_toolset import McpToolset, StdioConnectionParams
         from mcp.client.stdio import StdioServerParameters
 
+        # Resolve binary path — check backend/bin/ first, then PATH
+        binary_path = os.path.join(BIN_DIR, BINARY)
+        if not os.path.isfile(binary_path):
+            binary_path = BINARY  # fall back to PATH
+
         params = StdioConnectionParams(
             server_params=StdioServerParameters(
-                command="npx",
-                args=["-y", PACKAGE],
+                command=binary_path,
+                args=["stdio"],
                 env={"GITHUB_PERSONAL_ACCESS_TOKEN": TOKEN},
             ),
-            timeout=60.0,  # npx cold-start can be slow
+            timeout=60.0,
         )
 
         toolset = McpToolset(connection_params=params)
@@ -122,9 +129,17 @@ async def main() -> None:
                     args={"query": "modelcontextprotocol"},
                     tool_context=None,
                 )
-                if result and "error" not in str(result).lower():
+                result_str = str(result)
+                # Check for actual error — not just the word "error" in field names
+                is_error = (
+                    result is None
+                    or (isinstance(result, dict) and result.get("isError"))
+                    or '"isError": true' in result_str.lower()
+                    or '"isError":true' in result_str.lower()
+                )
+                if result and not is_error:
                     ok(f"search_repositories returned results successfully.")
-                    info(f"  Response preview: {str(result)[:200]}...")
+                    info(f"  Response preview: {result_str[:200]}...")
                 else:
                     fail(f"search_repositories returned error: {result}")
             else:

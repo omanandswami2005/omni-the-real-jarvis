@@ -1,13 +1,12 @@
 {
     "id": "github",
     "name": "GitHub",
-    "description": "Interact with GitHub repos, issues, PRs.",
+    "description": "Interact with GitHub repos, issues, PRs, actions, code security, and more.",
     "kind": "mcp_stdio",
     "category": "dev",
-    "command": "npx",
+    "command": "github-mcp-server.exe",
     "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
+        "stdio"
     ],
     "env_keys": [
         "GITHUB_PERSONAL_ACCESS_TOKEN"
@@ -91,8 +90,24 @@
             "description": "List pull requests in a repository"
         },
         {
-            "name": "create_or_update_file",
-            "description": "Create or update a single file"
+            "name": "merge_pull_request",
+            "description": "Merge a pull request"
+        },
+        {
+            "name": "get_pull_request_files",
+            "description": "Get files changed in a pull request"
+        },
+        {
+            "name": "get_pull_request_status",
+            "description": "Get combined status checks for a PR"
+        },
+        {
+            "name": "create_pull_request_review",
+            "description": "Create a review on a pull request"
+        },
+        {
+            "name": "search_users",
+            "description": "Search for GitHub users"
         }
     ]
 }
