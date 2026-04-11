@@ -228,7 +228,6 @@ const LandingPage = () => {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-purple-300 mb-6" style={{ animation: 'fade-in-down 0.8s ease-out both' }}>
               <SparklesIcon className="w-4 h-4" />
-              <span>Gemini Live Agent Challenge</span>
             </div>
 
             {/* Heading with stagger animations */}

@@ -18,6 +18,10 @@ logger = get_logger(__name__)
 
 class SubscriptionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # BaseHTTPMiddleware corrupts WebSocket upgrades — skip entirely
+        if request.scope.get("type") == "websocket":
+            return await call_next(request)
+
         # Only applies to authenticated requests
         if not hasattr(request.state, "user"):
             return await call_next(request)

@@ -115,6 +115,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # BaseHTTPMiddleware corrupts WebSocket upgrades — skip entirely
+        if request.scope.get("type") == "websocket":
+            return await call_next(request)
+
         auth_header = request.headers.get("authorization", "")
         if auth_header.lower().startswith("bearer "):
             token = auth_header[7:]

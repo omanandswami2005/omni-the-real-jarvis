@@ -29,6 +29,10 @@ _EXEMPT_PREFIXES = (
 
 class UsageGateMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # BaseHTTPMiddleware corrupts WebSocket upgrades — skip entirely
+        if request.scope.get("type") == "websocket":
+            return await call_next(request)
+
         path = request.url.path
 
         # Skip exempt paths
