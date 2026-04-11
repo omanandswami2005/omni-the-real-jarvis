@@ -1,0 +1,84 @@
+# ========================
+# OMNI — Global .gitignore
+# ========================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+.venv/
+venv/
+env/
+
+# --- uv ---
+.uv/
+
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- Vite / React ---
+dashboard/dist/
+dashboard/.vite/
+start.txt
+# --- Environment ---
+.env
+.env.local
+.env.production
+.env.*.local
+!.env.example
+cloud-run-env.yaml
+**/cloud-run-env.yaml
+# --- Local credential / scratch files ---
+dummy_auth_creds.txt
+*_creds.txt
+*_credentials.txt
+
+# --- Service Account Keys (NEVER commit) ---
+*-sa.json
+*-service-account.json
+*-credentials.json
+.firebase/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Terraform ---
+deploy/terraform/.terraform/
+deploy/terraform/*.tfstate
+deploy/terraform/*.tfstate.backup
+deploy/terraform/*.tfvars
+deploy/terraform/.terraform.lock.hcl
+
+# --- Docker ---
+*.log
+
+# --- OS ---
+.DS_Store
+Desktop.ini
+ehthumbs.db
+
+# --- Testing ---
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# --- Docs build ---
+Docs/*.pdf
