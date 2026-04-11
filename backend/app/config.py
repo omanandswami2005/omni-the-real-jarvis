@@ -68,6 +68,18 @@ class Settings(BaseSettings):
     SCHEDULER_SA_EMAIL: str = ""  # Service account email for Cloud Scheduler OIDC
     ENABLE_LOCAL_CRON_IN_PRODUCTION: bool = False
 
+    # --- Stripe Billing ---
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_PRO_PRICE_ID: str = ""
+    STRIPE_ULTRA_PRICE_ID: str = ""
+
+    # --- Admin / Tester Overrides ---
+    # Comma-separated Firebase UIDs that get unlimited credits (bypasses billing)
+    ADMIN_UIDS: str = ""
+    # Comma-separated Firebase UIDs for testers (get 999,999 credits, full feature access)
+    TESTER_UIDS: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT == "production"
@@ -75,6 +87,14 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def admin_uid_set(self) -> set[str]:
+        return {uid.strip() for uid in self.ADMIN_UIDS.split(",") if uid.strip()}
+
+    @property
+    def tester_uid_set(self) -> set[str]:
+        return {uid.strip() for uid in self.TESTER_UIDS.split(",") if uid.strip()}
 
 
 @lru_cache

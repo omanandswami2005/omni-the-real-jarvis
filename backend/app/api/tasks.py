@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.middleware.auth_middleware import AuthenticatedUser, get_current_user
 from app.models.planned_task import (
@@ -12,6 +12,7 @@ from app.models.planned_task import (
     TaskInputResponse,
 )
 from app.services.task_orchestrator import get_task_orchestrator
+from app.services.subscription_service import get_subscription_service
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -51,6 +52,13 @@ async def create_task(
 ):
     """Create a new planned task, decompose it into steps."""
     orchestrator = get_task_orchestrator()
+
+    sub_svc = get_subscription_service()
+    tasks = await orchestrator.list_tasks(user.uid)
+    active_count = sum(1 for t in tasks if t.status.value in ("running", "planned", "paused"))
+    if not sub_svc.check_feature(user.uid, "max_active_tasks", active_count):
+        raise HTTPException(status_code=403, detail="Active task limit reached for your plan.")
+
     task = await orchestrator.create_task(user.uid, body.description)
     task = await orchestrator.plan_task(task)
 
@@ -244,6 +252,11 @@ async def desktop_status(user: AuthenticatedUser = Depends(get_current_user)):  
 @router.post("/desktop/start")
 async def start_desktop(user: AuthenticatedUser = Depends(get_current_user)):  # noqa: B008
     """Start an E2B Desktop sandbox for the current user."""
+    sub_svc = get_subscription_service()
+    flags = sub_svc.get_feature_flags(user.uid)
+    if not flags.get("sandbox_enabled", False):
+        raise HTTPException(status_code=403, detail="Sandbox requires a Pro or higher plan.")
+
     from app.services.e2b_desktop_service import get_e2b_desktop_service
 
     svc = get_e2b_desktop_service()

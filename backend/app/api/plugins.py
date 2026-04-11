@@ -27,6 +27,7 @@ from app.models.plugin import (
 from app.services.google_oauth_service import get_google_oauth_service
 from app.services.oauth_service import get_oauth_service
 from app.services.plugin_registry import get_plugin_registry
+from app.services.subscription_service import get_subscription_service
 
 router = APIRouter()
 
@@ -55,6 +56,12 @@ async def toggle_plugin(body: PluginToggle, user: CurrentUser):
     manifest = registry.get_manifest(body.plugin_id)
     if manifest is None:
         raise HTTPException(status_code=404, detail=f"Plugin '{body.plugin_id}' not found")
+
+    if body.enabled:
+        sub_svc = get_subscription_service()
+        enabled_ids = registry.get_enabled_ids(user.uid)
+        if not sub_svc.check_feature(user.uid, "max_active_mcps", len(enabled_ids)):
+            raise HTTPException(status_code=403, detail="Plugin limit reached for your plan. Upgrade to enable more.")
 
     # Block activation when required API keys are missing
     if body.enabled and manifest.requires_auth and manifest.env_keys:

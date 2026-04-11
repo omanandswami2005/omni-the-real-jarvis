@@ -1660,6 +1660,19 @@ async def ws_live(websocket: WebSocket) -> None:
         voice_name,
     ) = auth_result
 
+    # ── Credit gate — reject if credits are exhausted ─────────────
+    from app.services.subscription_service import SubscriptionService
+    sub_svc = SubscriptionService()
+    if not sub_svc.is_override_user(user.uid):
+        credit_info = await sub_svc.get_credit_balance(user.uid)
+        if credit_info.get("balance", 0) + credit_info.get("bonus_credits", 0) <= 0:
+            await websocket.send_json(
+                {"type": "error", "code": "credits_exhausted",
+                 "message": "Credits exhausted — upgrade your plan to continue."}
+            )
+            await websocket.close(code=4402, reason="credits_exhausted")
+            return
+
     mgr = get_connection_manager()
 
     # Check if OTHER client types are already online (for session continuity)

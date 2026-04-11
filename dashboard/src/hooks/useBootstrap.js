@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { usePersonaStore } from '@/stores/personaStore';
 import { useMcpStore } from '@/stores/mcpStore';
+import { useBillingStore } from '@/stores/billingStore';
 
 export function useBootstrap() {
     const fetched = useRef(false);
@@ -37,5 +38,8 @@ export function useBootstrap() {
         }).catch(() => {
             // Silent — individual pages can still fetch their own data as fallback
         });
+
+        // Fetch billing status in parallel (non-blocking)
+        useBillingStore.getState().fetchBillingStatus().catch(() => {});
     }, [token]);
 }

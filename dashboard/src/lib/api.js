@@ -34,6 +34,14 @@ async function request(path, options = {}) {
         throw new Error('Rate limited — please slow down and try again.');
     }
 
+    if (res.status === 402) {
+        const body = await res.json().catch(() => ({}));
+        const err = new Error(body.message || 'Credits exhausted — upgrade your plan to continue.');
+        err.status = 402;
+        err.code = 'credits_exhausted';
+        throw err;
+    }
+
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         const err = new Error(body.detail || `API error ${res.status}`);

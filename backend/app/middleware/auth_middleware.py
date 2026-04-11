@@ -1,12 +1,13 @@
-"""Firebase JWT verification — FastAPI dependency for protected routes."""
+"""Firebase JWT verification — FastAPI dependency + middleware for protected routes."""
 
 from typing import Annotated
 
 import firebase_admin
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from app.config import settings
 from app.utils.errors import AuthenticationError
@@ -97,3 +98,31 @@ async def get_current_user(
 
 # Convenient type alias for route signatures
 CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]
+
+
+# ── Auth middleware (runs before SubscriptionMiddleware) ──────────────
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """Lightweight middleware that tries to extract and verify a Bearer
+    token on every request, setting ``request.state.user`` if valid.
+
+    Unlike the ``get_current_user`` dependency this never rejects a
+    request — it only pre-populates ``request.state.user`` so that
+    downstream middleware (SubscriptionMiddleware, UsageGateMiddleware)
+    can inspect the authenticated identity.  The per-route dependency
+    still enforces 401 on protected endpoints.
+    """
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.lower().startswith("bearer "):
+            token = auth_header[7:]
+            try:
+                _get_firebase_app()
+                decoded = firebase_auth.verify_id_token(token)
+                request.state.user = AuthenticatedUser(decoded)
+            except Exception:
+                pass  # invalid / expired — let the route dependency handle 401
+
+        return await call_next(request)

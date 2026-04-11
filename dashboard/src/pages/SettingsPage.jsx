@@ -1,9 +1,9 @@
 /**
- * Page: SettingsPage — Application settings (theme, audio, privacy, shortcuts).
+ * Page: SettingsPage — Application settings (theme, audio, privacy, shortcuts, billing).
  */
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { toast } from 'sonner';
 import ThemeToggle from '@/components/layout/ThemeToggle';
@@ -13,8 +13,9 @@ import { api } from '@/lib/api';
 import { auth } from '@/lib/firebase';
 import { useVoice } from '@/hooks/useVoiceProvider';
 import { usePersonaStore } from '@/stores/personaStore';
+import { useBillingStore } from '@/stores/billingStore';
 
-const TABS = ['General', 'Audio', 'Privacy', 'Shortcuts'];
+const TABS = ['General', 'Audio', 'Billing', 'Privacy', 'Shortcuts'];
 
 // Gemini prebuilt voices (subset)
 const AVAILABLE_VOICES = [
@@ -37,7 +38,9 @@ const SHORTCUTS = [
 
 export default function SettingsPage() {
   useDocumentTitle('Settings');
-  const [tab, setTab] = useState('General');
+  const [searchParams] = useSearchParams();
+  const initialTab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'General';
+  const [tab, setTab] = useState(initialTab);
   const [signingOut, setSigningOut] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -49,6 +52,17 @@ export default function SettingsPage() {
   const activePersona = usePersonaStore((s) => s.activePersona);
   const personas = usePersonaStore((s) => s.personas);
   const setActivePersona = usePersonaStore((s) => s.setActivePersona);
+
+  // Billing store
+  const billing = useBillingStore();
+
+  // Load billing data when billing tab is active
+  useEffect(() => {
+    if (tab === 'Billing') {
+      billing.fetchBillingStatus();
+      billing.fetchUsage();
+    }
+  }, [tab]);
 
   // Determine the current voice from the active persona
   const currentVoice = activePersona?.voice || 'Aoede';
@@ -300,6 +314,11 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Billing */}
+      {tab === 'Billing' && (
+        <BillingTab billing={billing} />
+      )}
+
       {/* Shortcuts */}
       {tab === 'Shortcuts' && (
         <div className="space-y-4">
@@ -313,6 +332,191 @@ export default function SettingsPage() {
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+
+// ── Billing Tab Component ─────────────────────────────────────────────
+
+const PLAN_LABELS = {
+  free: { name: 'Free', price: '$0/mo', color: 'text-muted-foreground' },
+  pro: { name: 'Pro', price: '$12/mo', color: 'text-blue-500' },
+  ultra: { name: 'Ultra', price: '$29/mo', color: 'text-purple-500' },
+  admin: { name: 'Admin', price: '∞', color: 'text-amber-500' },
+  tester: { name: 'Tester', price: '∞', color: 'text-green-500' },
+};
+
+function BillingTab({ billing }) {
+  const { plan, credits, features, plans, isOverride, cancelAtPeriodEnd, loading, usage } = billing;
+  const creditsPercent = billing.creditsPercent();
+
+  if (loading && !plan) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  const planInfo = PLAN_LABELS[plan] || PLAN_LABELS.free;
+
+  // Aggregate usage by action for the breakdown
+  const usageByAction = {};
+  (usage || []).forEach((u) => {
+    usageByAction[u.action] = (usageByAction[u.action] || 0) + (u.credits || 0);
+  });
+  const totalUsed = Object.values(usageByAction).reduce((a, b) => a + b, 0);
+
+  const ACTION_LABELS = {
+    model_inference: 'Text / Voice',
+    image_gen: 'Image Generation',
+    mcp_call: 'Tool Calls',
+    brave_search: 'Web Search',
+    google_maps: 'Maps',
+    sandbox_min: 'Code Sandbox',
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Current plan header */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium">Subscription</h2>
+        <div className="rounded-lg border border-border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xl font-bold ${planInfo.color}`}>{planInfo.name}</span>
+                {isOverride && (
+                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-500 font-medium">
+                    Override
+                  </span>
+                )}
+                {cancelAtPeriodEnd && (
+                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive font-medium">
+                    Cancels at period end
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">{planInfo.price}</p>
+            </div>
+            {!isOverride && plan !== 'free' && (
+              <button
+                onClick={() => billing.openPortal()}
+                className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted transition-colors"
+              >
+                Manage Plan
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Credit bar */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium">Credits</h2>
+        <div className="rounded-lg border border-border p-4 space-y-3">
+          {credits?.unlimited ? (
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-amber-500">∞</span>
+              <span className="text-sm text-muted-foreground">Unlimited credits</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">
+                  {credits?.balance?.toLocaleString() || 0} / {credits?.period_limit?.toLocaleString() || 0}
+                </span>
+                <span className="text-xs text-muted-foreground">{creditsPercent}% remaining</span>
+              </div>
+              <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    creditsPercent > 50 ? 'bg-primary' : creditsPercent > 20 ? 'bg-amber-500' : 'bg-destructive'
+                  }`}
+                  style={{ width: `${Math.max(creditsPercent, 1)}%` }}
+                />
+              </div>
+              {credits?.bonus_credits > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  + {credits.bonus_credits.toLocaleString()} bonus credits
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Usage breakdown */}
+      {totalUsed > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-medium">Usage This Period</h2>
+          <div className="rounded-lg border border-border">
+            {Object.entries(usageByAction)
+              .sort(([, a], [, b]) => b - a)
+              .map(([action, credits], i) => (
+                <div
+                  key={action}
+                  className={`flex items-center justify-between p-3 ${i > 0 ? 'border-t border-border' : ''}`}
+                >
+                  <span className="text-sm">{ACTION_LABELS[action] || action}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium">{credits.toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground w-10 text-right">
+                      {totalUsed > 0 ? Math.round((credits / totalUsed) * 100) : 0}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
+
+      {/* Plan comparison / upgrade */}
+      {!isOverride && plans && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-medium">Plans</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {Object.entries(plans).map(([planKey, config]) => {
+              const info = PLAN_LABELS[planKey] || {};
+              const isCurrent = planKey === plan;
+              return (
+                <div
+                  key={planKey}
+                  className={`rounded-lg border p-4 space-y-3 ${
+                    isCurrent ? 'border-primary ring-1 ring-primary' : 'border-border'
+                  }`}
+                >
+                  <div>
+                    <h3 className={`font-bold ${info.color || ''}`}>{info.name}</h3>
+                    <p className="text-lg font-bold">{info.price}</p>
+                  </div>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li>{config.credits_monthly?.toLocaleString()} credits/mo</li>
+                    <li>{config.max_personas === -1 ? 'Unlimited' : config.max_personas} persona(s)</li>
+                    <li>{config.max_active_mcps === -1 ? 'Unlimited' : config.max_active_mcps} active plugins</li>
+                    <li>{config.max_devices === -1 ? 'Unlimited' : config.max_devices} device(s)</li>
+                    <li>{config.image_gen_daily_limit === -1 ? 'Unlimited' : config.image_gen_daily_limit} images/day</li>
+                    <li>{config.sandbox_enabled ? '✓ Code sandbox' : '✗ Code sandbox'}</li>
+                  </ul>
+                  {isCurrent ? (
+                    <div className="rounded bg-primary/10 text-center py-1.5 text-xs font-medium text-primary">
+                      Current Plan
+                    </div>
+                  ) : planKey !== 'free' ? (
+                    <button
+                      onClick={() => billing.startCheckout(planKey)}
+                      className="w-full rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      Upgrade to {info.name}
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );

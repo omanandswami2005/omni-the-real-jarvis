@@ -165,6 +165,16 @@ def create_app() -> FastAPI:
     # Add logging middleware first
     app.add_middleware(LoggingMiddleware)
 
+    # Subscription billing middleware (runs after auth, before route handlers)
+    # Registration order is reversed: last added = first executed.
+    # Desired order: Auth → Subscription → UsageGate → Handler
+    from app.middleware.usage_gate import UsageGateMiddleware
+    from app.middleware.subscription_middleware import SubscriptionMiddleware
+    from app.middleware.auth_middleware import AuthMiddleware
+    app.add_middleware(UsageGateMiddleware)          # 4th in chain
+    app.add_middleware(SubscriptionMiddleware)        # 3rd in chain
+    app.add_middleware(AuthMiddleware)                # 2nd in chain (after CORS)
+
     # Middleware
     setup_cors(app)
 

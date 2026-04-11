@@ -53,6 +53,13 @@ class ValidationError(OmniError):
 #         super().__init__(message=message, status_code=429)
 
 
+class CreditsExhaustedError(OmniError):
+    """User has no remaining credits."""
+
+    def __init__(self, message: str = "Credits exhausted — upgrade your plan to continue"):
+        super().__init__(message=message, status_code=402)
+
+
 class MCPConnectionError(OmniError):
     """Failed to connect to MCP server."""
 

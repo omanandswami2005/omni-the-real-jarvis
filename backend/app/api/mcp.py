@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 from app.middleware.auth_middleware import CurrentUser
 from app.models.mcp import MCPCatalogItem, MCPConfig, MCPToggle
 from app.services.mcp_manager import get_mcp_manager
+from app.services.subscription_service import get_subscription_service
 
 router = APIRouter()
 
@@ -32,6 +33,17 @@ async def toggle_mcp(body: MCPToggle, user: CurrentUser):
     config = mgr.get_mcp_config(body.mcp_id)
     if config is None:
         raise HTTPException(status_code=404, detail=f"MCP '{body.mcp_id}' not found")
+
+    if body.enabled:
+        sub_svc = get_subscription_service()
+        enabled_ids = mgr.get_enabled_ids(user.uid)
+        if not sub_svc.check_feature(user.uid, "max_active_mcps", len(enabled_ids)):
+            raise HTTPException(status_code=403, detail="MCP limit reached for your plan. Upgrade to enable more.")
+        if body.mcp_id.startswith("e2b"):
+            flags = sub_svc.get_feature_flags(user.uid)
+            if not flags.get("sandbox_enabled", False):
+                raise HTTPException(status_code=403, detail="Sandbox requires a Pro or higher plan.")
+
     enabled = await mgr.toggle_mcp(user.uid, body)
     return {"mcp_id": body.mcp_id, "enabled": enabled}
 

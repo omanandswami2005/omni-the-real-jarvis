@@ -167,6 +167,29 @@ def cost_estimation_callback(
         total_calls=cost_state["calls"],
     )
 
+    # ── Credit deduction (fire-and-forget) ────────────────────────────
+    # Convert token usage to credits: 1 credit per 1K input, 4 per 1K output
+    input_credits = max(1, input_tokens // 1000) if input_tokens else 0
+    output_credits = max(1, (output_tokens * 4) // 1000) if output_tokens else 1
+    total_credits = input_credits + output_credits
+    user_id = state.get("user_id")
+    session_id = state.get("session_id", "")
+    if user_id and total_credits > 0:
+        try:
+            import asyncio
+            from app.services.subscription_service import get_subscription_service
+            svc = get_subscription_service()
+            loop = asyncio.get_running_loop()
+            loop.create_task(svc.deduct_credits(
+                user_id=user_id,
+                amount=total_credits,
+                action="model_inference",
+                session_id=session_id,
+                metadata={"input_tokens": input_tokens, "output_tokens": output_tokens},
+            ))
+        except Exception:
+            pass  # billing should never block inference
+
     return None  # proceed
 
 
@@ -355,6 +378,38 @@ def tool_activity_after_callback(
         elapsed_s=elapsed,
         success=not is_error,
     )
+
+    # ── Credit deduction for tool calls ───────────────────────────────
+    if user_id and not is_error:
+        try:
+            import asyncio
+            from app.services.subscription_service import CREDIT_COSTS, get_subscription_service
+            # Determine credit cost based on tool type
+            if tool_name.startswith("mcp_brave") or "search" in tool_name:
+                cost = CREDIT_COSTS.get("brave_search", 3)
+                action = "brave_search"
+            elif tool_name.startswith("mcp_google_maps") or "maps" in tool_name:
+                cost = CREDIT_COSTS.get("google_maps", 3)
+                action = "google_maps"
+            elif "image" in tool_name and "gen" in tool_name:
+                cost = CREDIT_COSTS.get("image_gen", 30)
+                action = "image_gen"
+            else:
+                cost = CREDIT_COSTS.get("mcp_call", 2)
+                action = "mcp_call"
+            svc = get_subscription_service()
+            session_id = state.get("session_id", "")
+            loop = asyncio.get_running_loop()
+            loop.create_task(svc.deduct_credits(
+                user_id=user_id,
+                amount=cost,
+                action=action,
+                session_id=session_id,
+                metadata={"tool": tool_name, "agent": agent_name},
+            ))
+        except Exception:
+            pass  # billing should never block tool execution
+
     return None
 
 

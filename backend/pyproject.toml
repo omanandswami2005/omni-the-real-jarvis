@@ -33,6 +33,7 @@ dependencies = [
     "structlog>=24.0.0",
     "wikipedia>=1.4.0",
     "croniter>=2.0.0",
+    "stripe>=8.0.0",
 ]
 
 [project.optional-dependencies]

@@ -18,6 +18,7 @@ import { useBootstrap } from '@/hooks/useBootstrap';
 import { useEventSocket } from '@/hooks/useEventSocket';
 import { useChatWebSocket } from '@/hooks/useChatWebSocket';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useBillingStore } from '@/stores/billingStore';
 
 export function AppShell() {
   return (
@@ -34,11 +35,27 @@ function ShellLayout() {
   useEventSocket();
   useChatWebSocket();
 
+  const { isLowCredits, isExhausted, credits, fetchBillingStatus } = useBillingStore();
+  const low = isLowCredits();
+  const exhausted = isExhausted();
+
   return (
     <div className="flex h-screen bg-background text-foreground">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar />
+        {exhausted && (
+          <div className="flex items-center justify-between bg-destructive/90 text-destructive-foreground px-4 py-2 text-sm font-medium">
+            <span>Your credits are exhausted. Upgrade your plan to continue using Omni.</span>
+            <a href="/settings?tab=Billing" className="underline font-semibold ml-2 whitespace-nowrap">Upgrade now</a>
+          </div>
+        )}
+        {low && !exhausted && (
+          <div className="flex items-center justify-between bg-yellow-500/90 text-yellow-950 px-4 py-2 text-sm font-medium">
+            <span>You're running low on credits ({credits?.balance ?? 0} remaining).</span>
+            <a href="/settings?tab=Billing" className="underline font-semibold ml-2 whitespace-nowrap">View plans</a>
+          </div>
+        )}
         <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
           <Outlet />
         </main>

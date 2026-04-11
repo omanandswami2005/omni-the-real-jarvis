@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.auth import router as auth_router
+from app.api.billing import router as billing_router
 from app.api.clients import router as clients_router
 from app.api.gallery import router as gallery_router
 from app.api.health import router as health_router
@@ -30,3 +31,4 @@ api_router.include_router(gallery_router, prefix="/gallery", tags=["gallery"])
 api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(scheduled_tasks_router, prefix="/scheduled-tasks", tags=["scheduled-tasks"])
 api_router.include_router(scheduler_router, prefix="/internal/scheduler", tags=["scheduler"])
+api_router.include_router(billing_router, tags=["billing"])
