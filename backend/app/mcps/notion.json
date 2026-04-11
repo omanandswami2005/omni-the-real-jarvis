@@ -1,0 +1,53 @@
+{
+    "id": "notion",
+    "name": "Notion",
+    "description": "Read and write Notion pages and databases via Notion's hosted MCP server.",
+    "kind": "mcp_oauth",
+    "category": "productivity",
+    "url": "https://mcp.notion.com/mcp",
+    "oauth": {
+        "client_name": "Omni Hub",
+        "scopes": [],
+        "redirect_uri": ""
+    },
+    "requires_auth": true,
+    "icon": "notion",
+    "tags": [
+        "knowledge",
+        "communication"
+    ],
+    "tools_summary": [
+        {
+            "name": "notion_search",
+            "description": "Search for pages and databases in Notion"
+        },
+        {
+            "name": "notion_read_page",
+            "description": "Read the content of a Notion page"
+        },
+        {
+            "name": "notion_create_page",
+            "description": "Create a new Notion page"
+        },
+        {
+            "name": "notion_update_page",
+            "description": "Update an existing Notion page"
+        },
+        {
+            "name": "notion_list_databases",
+            "description": "List available Notion databases"
+        },
+        {
+            "name": "notion_query_database",
+            "description": "Query a Notion database with filters"
+        },
+        {
+            "name": "notion_create_database_item",
+            "description": "Add a new item to a Notion database"
+        },
+        {
+            "name": "notion_add_comment",
+            "description": "Add a comment to a Notion page"
+        }
+    ]
+}

@@ -1,0 +1,54 @@
+{
+    "id": "playwright",
+    "name": "Playwright",
+    "description": "Browser automation — navigate, click, screenshot.",
+    "kind": "mcp_stdio",
+    "category": "dev",
+    "command": "npx",
+    "args": [
+        "-y",
+        "@anthropic/mcp-playwright"
+    ],
+    "icon": "playwright",
+    "tags": [
+        "web"
+    ],
+    "tools_summary": [
+        {
+            "name": "browser_navigate",
+            "description": "Navigate to a URL in the browser"
+        },
+        {
+            "name": "browser_screenshot",
+            "description": "Take a screenshot of the current page"
+        },
+        {
+            "name": "browser_click",
+            "description": "Click an element on the page"
+        },
+        {
+            "name": "browser_fill",
+            "description": "Fill in a form field"
+        },
+        {
+            "name": "browser_select",
+            "description": "Select an option from a dropdown"
+        },
+        {
+            "name": "browser_hover",
+            "description": "Hover over an element"
+        },
+        {
+            "name": "browser_evaluate",
+            "description": "Execute JavaScript in the browser"
+        },
+        {
+            "name": "browser_get_text",
+            "description": "Get text content of an element"
+        },
+        {
+            "name": "browser_snapshot",
+            "description": "Get accessibility snapshot of the page"
+        }
+    ]
+}
