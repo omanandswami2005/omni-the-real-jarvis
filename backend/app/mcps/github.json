@@ -7,10 +7,10 @@
     "command": "npx",
     "args": [
         "-y",
-        "@anthropic/mcp-github"
+        "@modelcontextprotocol/server-github"
     ],
     "env_keys": [
-        "GITHUB_TOKEN"
+        "GITHUB_PERSONAL_ACCESS_TOKEN"
     ],
     "requires_auth": true,
     "icon": "github",

@@ -1,14 +1,14 @@
 {
     "id": "brave-search",
     "name": "Brave Search",
-    "description": "Web search via the Brave Search API.",
+    "description": "Web search, images, videos, news, and AI summaries via the official Brave Search MCP server.",
     "kind": "mcp_stdio",
     "singleton": true,
     "category": "search",
     "command": "npx",
     "args": [
         "-y",
-        "@anthropic/mcp-brave-search"
+        "@brave/brave-search-mcp-server"
     ],
     "env_keys": [
         "BRAVE_API_KEY"
@@ -27,6 +27,22 @@
         {
             "name": "brave_local_search",
             "description": "Search for local businesses and places"
+        },
+        {
+            "name": "brave_image_search",
+            "description": "Search for images"
+        },
+        {
+            "name": "brave_video_search",
+            "description": "Search for videos"
+        },
+        {
+            "name": "brave_news_search",
+            "description": "Search for news articles"
+        },
+        {
+            "name": "brave_summarizer",
+            "description": "AI-powered summaries from search results"
         }
     ]
 }

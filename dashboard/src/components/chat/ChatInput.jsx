@@ -4,11 +4,15 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
-import { Send, Paperclip, CheckCircle, RefreshCw } from 'lucide-react';
+import { Send, Paperclip, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useTaskStore } from '@/stores/taskStore';
+import { useChatStore } from '@/stores/chatStore';
 import { api } from '@/lib/api';
 
 export default function ChatInput({ onSend, disabled = false, disconnected = false }) {
+    const agentState = useChatStore((s) => s.agentState);
+    const activeTools = useChatStore((s) => s.activeTools);
+    const isGenerating = agentState === 'processing' || activeTools.size > 0;
     const [text, setText] = useState('');
     const [uploadStatus, setUploadStatus] = useState(null); // null | 'uploading' | {name, path}
     const fileRef = useRef(null);
@@ -52,6 +56,16 @@ export default function ChatInput({ onSend, disabled = false, disconnected = fal
                     {uploadStatus.name} → {uploadStatus.path}
                 </p>
             )}
+            {isGenerating && (
+                <div className="flex items-center gap-2 px-1">
+                    <Loader2 size={12} className="animate-spin text-blue-400" />
+                    <span className="text-xs text-blue-400/80">
+                        {activeTools.size > 0
+                            ? `Running ${[...activeTools].join(', ')}…`
+                            : 'Generating response…'}
+                    </span>
+                </div>
+            )}
             <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.05]">
                 <input
                     ref={fileRef}
@@ -71,7 +85,7 @@ export default function ChatInput({ onSend, disabled = false, disconnected = fal
                 <input
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    placeholder={disconnected ? 'Reconnecting…' : 'Type a message...'}
+                    placeholder={disconnected ? 'Reconnecting…' : isGenerating ? 'AI is thinking…' : 'Type a message...'}
                     disabled={disabled}
                     className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
                 />

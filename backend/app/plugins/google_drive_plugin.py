@@ -3,12 +3,15 @@
 Each user connects their own Google account via OAuth 2.0.  Tools then
 operate on *that user's* Drive files using their personal access token.
 
+Token is automatically injected via tool_context (same pattern as Calendar).
+
 Scopes: https://www.googleapis.com/auth/drive.readonly
 """
 
 from __future__ import annotations
 
 from google.adk.tools import FunctionTool
+from google.adk.tools.tool_context import ToolContext
 
 from app.models.plugin import (
     PluginCategory,
@@ -19,8 +22,10 @@ from app.models.plugin import (
 
 GOOGLE_DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
+_PLUGIN_ID = "google-drive"
+
 MANIFEST = PluginManifest(
-    id="google-drive",
+    id=_PLUGIN_ID,
     name="Google Drive",
     description="Search and read files from your Google Drive. "
     "Each user connects their own Google account via OAuth.",
@@ -52,6 +57,34 @@ MANIFEST = PluginManifest(
 
 _API = "https://www.googleapis.com/drive/v3"
 
+
+# ---------------------------------------------------------------------------
+# Token helper (same pattern as google_calendar_plugin)
+# ---------------------------------------------------------------------------
+
+async def _get_token(tool_context: ToolContext | None) -> str | None:
+    """Get the Google OAuth access token from the session context."""
+    from app.utils.logging import get_logger
+    _log = get_logger(__name__)
+
+    if tool_context is None:
+        _log.warning("drive_get_token_no_context")
+        return None
+    user_id = getattr(tool_context, "user_id", None)
+    if not user_id:
+        _log.warning("drive_get_token_no_user_id")
+        return None
+    from app.services.google_oauth_service import get_google_oauth_service
+    goauth = get_google_oauth_service()
+    token = await goauth.get_valid_token(user_id, _PLUGIN_ID)
+    if not token:
+        _log.warning("drive_get_token_failed", user_id=user_id, plugin_id=_PLUGIN_ID,
+                      has_tokens=goauth.has_tokens(user_id, _PLUGIN_ID))
+    else:
+        _log.debug("drive_get_token_ok", user_id=user_id)
+    return token
+
+
 # ---------------------------------------------------------------------------
 # Tool implementations
 # ---------------------------------------------------------------------------
@@ -60,22 +93,22 @@ _API = "https://www.googleapis.com/drive/v3"
 async def search_drive_files(
     query: str,
     max_results: int = 10,
-    access_token: str = "",
+    tool_context: ToolContext | None = None,
 ) -> dict:
     """Search for files in the user's Google Drive.
 
     Args:
         query: Search query (supports Google Drive search syntax).
         max_results: Maximum number of results to return (1-50).
-        access_token: The user's Google OAuth access token.
 
     Returns:
         A dict with matching files.
     """
     import httpx
 
+    access_token = await _get_token(tool_context)
     if not access_token:
-        return {"error": "Not connected. Please connect your Google account first."}
+        return {"error": "Google Drive token unavailable. Please connect your Google account on the Integrations page."}
 
     max_results = max(1, min(50, max_results))
 
@@ -111,7 +144,7 @@ async def search_drive_files(
 
 async def read_drive_file(
     file_id: str,
-    access_token: str = "",
+    tool_context: ToolContext | None = None,
 ) -> dict:
     """Read the text content of a file from Google Drive.
 
@@ -119,15 +152,15 @@ async def read_drive_file(
 
     Args:
         file_id: The ID of the file to read.
-        access_token: The user's Google OAuth access token.
 
     Returns:
         A dict with the file name and content.
     """
     import httpx
 
+    access_token = await _get_token(tool_context)
     if not access_token:
-        return {"error": "Not connected. Please connect your Google account first."}
+        return {"error": "Google Drive token unavailable. Please connect your Google account on the Integrations page."}
 
     async with httpx.AsyncClient(timeout=15) as client:
         # Get file metadata
@@ -185,21 +218,21 @@ async def read_drive_file(
 
 async def list_drive_files(
     max_results: int = 20,
-    access_token: str = "",
+    tool_context: ToolContext | None = None,
 ) -> dict:
     """List recent files in the user's Google Drive.
 
     Args:
         max_results: Maximum number of files to return (1-100).
-        access_token: The user's Google OAuth access token.
 
     Returns:
         A dict with recent files.
     """
     import httpx
 
+    access_token = await _get_token(tool_context)
     if not access_token:
-        return {"error": "Not connected. Please connect your Google account first."}
+        return {"error": "Google Drive token unavailable. Please connect your Google account on the Integrations page."}
 
     max_results = max(1, min(100, max_results))
 

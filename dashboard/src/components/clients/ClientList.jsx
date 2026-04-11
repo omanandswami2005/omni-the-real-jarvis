@@ -8,7 +8,7 @@ export default function ClientList({ clients = [] }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {clients.map((client) => (
-        <ClientCard key={client.id} client={client} />
+        <ClientCard key={client.client_id || client.client_type} client={client} />
       ))}
     </div>
   );

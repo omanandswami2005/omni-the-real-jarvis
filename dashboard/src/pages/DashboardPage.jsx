@@ -112,14 +112,13 @@ export default function DashboardPage() {
     }, [hasRunningTask, taskList.length]);
 
     // When persona changes, reconnect WS so the backend uses the new persona's voice
-    const reconnect = useVoice((v) => v.reconnect);
     const prevPersonaRef = useRef(null);
     useEffect(() => {
         if (activePersona?.id && prevPersonaRef.current && activePersona.id !== prevPersonaRef.current) {
-            reconnect?.();
+            voice.reconnect?.();
         }
         prevPersonaRef.current = activePersona?.id;
-    }, [activePersona?.id, reconnect]);
+    }, [activePersona?.id, voice.reconnect]);
 
     // Find the last genui message for the side panel
     const lastGenUI = [...messages].reverse().find((m) => m.genui_type);

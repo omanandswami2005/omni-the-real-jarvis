@@ -371,6 +371,7 @@ class PluginRegistry:
                 args=manifest.args,
                 env=env or None,
             ),
+            timeout=60.0,  # npx cold-starts can take 30-60s to download packages
         )
 
     async def connect_plugin(self, user_id: str, plugin_id: str) -> bool:

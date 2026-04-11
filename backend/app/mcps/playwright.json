@@ -7,7 +7,7 @@
     "command": "npx",
     "args": [
         "-y",
-        "@anthropic/mcp-playwright"
+        "@playwright/mcp"
     ],
     "icon": "playwright",
     "tags": [

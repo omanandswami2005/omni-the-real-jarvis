@@ -1,0 +1,52 @@
+{
+    "id": "jules",
+    "name": "Jules (MCP)",
+    "description": "Google's AI coding agent — create sessions, review code diffs, approve plans via the official @google/jules-mcp server.",
+    "kind": "mcp_stdio",
+    "category": "dev",
+    "command": "npx",
+    "args": [
+        "-y",
+        "@google/jules-mcp"
+    ],
+    "env_keys": [
+        "JULES_API_KEY"
+    ],
+    "requires_auth": true,
+    "icon": "jules",
+    "tags": [
+        "code_execution",
+        "dev",
+        "*"
+    ],
+    "tools_summary": [
+        {
+            "name": "create_session",
+            "description": "Create a new Jules coding session with a prompt and optional GitHub source"
+        },
+        {
+            "name": "list_sessions",
+            "description": "List recent Jules sessions"
+        },
+        {
+            "name": "get_session_state",
+            "description": "Get session status, last activity, and pending plans"
+        },
+        {
+            "name": "send_reply",
+            "description": "Send a message or approve a plan in a Jules session"
+        },
+        {
+            "name": "get_code_review_context",
+            "description": "Get session summary with file changes for code review"
+        },
+        {
+            "name": "show_code_diff",
+            "description": "Get the full unidiff patch for session code changes"
+        },
+        {
+            "name": "query_cache",
+            "description": "Query local cache of sessions and activities"
+        }
+    ]
+}

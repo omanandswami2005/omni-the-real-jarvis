@@ -7,7 +7,7 @@
     "command": "npx",
     "args": [
         "-y",
-        "@anthropic/mcp-server-postgres"
+        "@modelcontextprotocol/server-postgres"
     ],
     "env_keys": [
         "CLOUD_SQL_CONNECTION_STRING"

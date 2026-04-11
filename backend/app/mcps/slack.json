@@ -7,7 +7,7 @@
     "command": "npx",
     "args": [
         "-y",
-        "@anthropic/mcp-slack"
+        "@modelcontextprotocol/server-slack"
     ],
     "env_keys": [
         "SLACK_TOKEN"
