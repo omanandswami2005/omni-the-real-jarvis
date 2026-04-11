@@ -30,9 +30,19 @@ export const useTaskStore = create((set, get) => ({
 
     /** Set a task (from task_created, task_planned, task_updated events) */
     setTask: (task) => {
-        set((state) => ({
-            tasks: { ...state.tasks, [task.id]: task },
-        }));
+        set((state) => {
+            const prev = state.tasks[task.id] || {};
+            const merged = { ...prev, ...task };
+
+            // Keep existing step detail when incoming payload is a summary object.
+            if (!Object.prototype.hasOwnProperty.call(task, 'steps') && Array.isArray(prev.steps)) {
+                merged.steps = prev.steps;
+            }
+
+            return {
+                tasks: { ...state.tasks, [task.id]: merged },
+            };
+        });
     },
 
     /** Update a specific step in a task */

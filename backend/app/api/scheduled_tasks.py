@@ -39,7 +39,7 @@ class ScheduledTaskAction(BaseModel):
 
 @router.get("/")
 async def list_scheduled_tasks(
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
 ):
     """List all scheduled tasks for the authenticated user."""
     from app.services.scheduler_service import get_scheduler_service
@@ -52,12 +52,22 @@ async def list_scheduled_tasks(
 @router.post("/")
 async def create_scheduled_task(
     body: ScheduledTaskCreate,
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
 ):
     """Create a new scheduled/cron task."""
     from app.services.scheduler_service import ScheduledTaskCreateParams, get_scheduler_service
 
     svc = get_scheduler_service()
+    notify_rule = None
+    if body.notify_channel:
+        notify_rule = {
+            "channel": body.notify_channel,
+            "recipient": body.notify_recipient,
+            "condition": "always",
+            "message": "Scheduled task result: {output}",
+            "title": body.description[:120],
+        }
+
     task = await svc.create_task(
         user_id=user.uid,
         params=ScheduledTaskCreateParams(
@@ -65,7 +75,7 @@ async def create_scheduled_task(
             action=body.action,
             schedule=body.schedule,
             action_params=body.action_params or {},
-            notify_rule=None,
+            notify_rule=notify_rule,
         )
     )
     return task.to_summary()
@@ -74,7 +84,7 @@ async def create_scheduled_task(
 @router.get("/{task_id}")
 async def get_scheduled_task(
     task_id: str,
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
 ):
     """Get a single scheduled task by ID."""
     from app.services.scheduler_service import get_scheduler_service
@@ -90,7 +100,7 @@ async def get_scheduled_task(
 async def get_execution_history(
     task_id: str,
     limit: int = 20,
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
 ):
     """Return recent execution records for a scheduled task."""
     from google.cloud import firestore as gc_firestore
@@ -128,7 +138,7 @@ async def get_execution_history(
 async def scheduled_task_action(
     task_id: str,
     body: ScheduledTaskAction,
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
 ):
     """Pause or resume a scheduled task."""
     from app.services.scheduler_service import get_scheduler_service
@@ -148,7 +158,7 @@ async def scheduled_task_action(
 @router.delete("/{task_id}")
 async def delete_scheduled_task(
     task_id: str,
-    user: AuthenticatedUser = Depends(get_current_user),
+    user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
 ):
     """Delete a scheduled task."""
     from app.services.scheduler_service import get_scheduler_service

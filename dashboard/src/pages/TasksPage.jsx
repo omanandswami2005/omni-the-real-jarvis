@@ -250,12 +250,35 @@ function PlannedTasksTab() {
     const [selected, setSelected] = useState(null);
     const [filter, setFilter] = useState('all');
 
+    const hydrateTaskDetail = useCallback(async (taskId) => {
+        const cached = useTaskStore.getState().tasks[taskId];
+        if (Array.isArray(cached?.steps)) return;
+        try {
+            const detail = await api.get(`/tasks/${taskId}`);
+            if (detail?.id) {
+                useTaskStore.getState().setTask(detail);
+            }
+        } catch (err) {
+            console.error('Failed to load task detail:', err);
+        }
+    }, []);
+
     useEffect(() => {
         setLoading(true);
         api.get('/tasks').then((data) => {
             if (data?.tasks) data.tasks.forEach((t) => useTaskStore.getState().setTask(t));
         }).catch(() => { }).finally(() => setLoading(false));
     }, []);
+
+    useEffect(() => {
+        if (!selected) return;
+        void hydrateTaskDetail(selected);
+    }, [selected, hydrateTaskDetail]);
+
+    const handleSelectTask = useCallback((taskId) => {
+        setSelected(taskId);
+        void hydrateTaskDetail(taskId);
+    }, [hydrateTaskDetail]);
 
     const filtered = useMemo(() => {
         if (filter === 'all') return tasks;
@@ -310,7 +333,7 @@ function PlannedTasksTab() {
                         const completedSteps = (task.steps || []).filter(s => s.status === 'completed').length;
 
                         return (
-                            <div key={task.id} onClick={() => setSelected(task.id)}
+                            <div key={task.id} onClick={() => handleSelectTask(task.id)}
                                 className="rounded-xl border border-border p-4 hover:bg-accent/50 transition-colors cursor-pointer group">
                                 <div className="flex items-center gap-3">
                                     <Icon className={cn('h-5 w-5 shrink-0', config.color, config.icon === Loader2 && 'animate-spin')} />

@@ -9,6 +9,7 @@ Firestore collection: ``scheduled_tasks/{task_id}``
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 from dataclasses import dataclass
@@ -26,6 +27,13 @@ from app.utils.logging import get_logger
 logger = get_logger(__name__)
 
 COLLECTION = "scheduled_tasks"
+
+
+def build_cron_execution_id(task_id: str, scheduled_for: datetime) -> str:
+    """Build a stable execution id from task id + scheduled run timestamp."""
+    if scheduled_for.tzinfo is None:
+        scheduled_for = scheduled_for.replace(tzinfo=UTC)
+    return f"cron_{task_id}_{int(scheduled_for.timestamp())}"
 
 
 # ── Data model ────────────────────────────────────────────────────────
@@ -728,10 +736,8 @@ class SchedulerService:
         self._cron_running = False
         if self._cron_task:
             self._cron_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._cron_task
-            except asyncio.CancelledError:
-                pass
             self._cron_task = None
             logger.info("local_cron_stopped")
 
@@ -763,13 +769,15 @@ class SchedulerService:
                 cron = croniter(task.schedule, base_time)
                 next_fire = cron.get_next(datetime)
                 if next_fire <= now:
+                    execution_id = build_cron_execution_id(task.id, next_fire)
                     logger.info(
                         "local_cron_firing",
                         task_id=task.id,
                         description=task.description[:60],
                         schedule=task.schedule,
+                        execution_id=execution_id,
                     )
-                    await self.execute_task(task_id=task.id)
+                    await self.execute_task(task_id=task.id, execution_id=execution_id)
             except Exception:
                 logger.exception("local_cron_task_check_error", task_id=task.id)
 
