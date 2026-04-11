@@ -4,7 +4,7 @@
     "description": "Interact with GitHub repos, issues, PRs, actions, code security, and more.",
     "kind": "mcp_stdio",
     "category": "dev",
-    "command": "npx.cmd",
+    "command": "npx",
     "args": [
         "-y",
         "@modelcontextprotocol/server-github"
