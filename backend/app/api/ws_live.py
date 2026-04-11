@@ -872,12 +872,10 @@ async def _downstream(
                     "Route to the correct specialist persona instead. "
                     "Tell the user briefly what happened and offer to try again."
                 )
-                try:
+                with contextlib.suppress(Exception):
                     queue.send_content(
                         _types.Content(role="user", parts=[_types.Part(text=_recovery_text)])
                     )
-                except Exception:
-                    pass
                 # Also send IDLE status so frontend unblocks
                 with contextlib.suppress(Exception):
                     idle_msg = StatusMessage(state=AgentState.IDLE)
@@ -1988,7 +1986,12 @@ async def ws_chat(websocket: WebSocket) -> None:
         session_id=session_id,
         firestore_session_id=firestore_session_id or "",
     )
-    await websocket.send_text(auth_ok.model_dump_json())
+    try:
+        await websocket.send_text(auth_ok.model_dump_json())
+    except (RuntimeError, WebSocketDisconnect) as exc:
+        logger.info("ws_chat_send_after_close", user_id=user.uid, error=str(exc))
+        await mgr.disconnect(user.uid, client_type, websocket=websocket)
+        return
 
     # Send current client status so the dashboard is up-to-date immediately
     clients = mgr.get_connected_clients(user.uid)

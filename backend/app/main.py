@@ -4,7 +4,7 @@ import os
 import threading
 import time
 from collections.abc import Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -98,17 +98,24 @@ async def lifespan(app: FastAPI):
     mgr = get_connection_manager()
     mgr.start_reaper()
 
-    # Start in-process cron runner.  In production this complements Cloud
-    # Scheduler (catches missed triggers / newly-created tasks).  In dev
-    # it is the only trigger mechanism.  The idempotency check in
-    # execute_task() prevents double-execution when both fire.
+    # Start in-process cron runner. In development this is the primary
+    # trigger mechanism. In production it stays off by default to avoid
+    # double-trigger races with Cloud Scheduler, but can be enabled
+    # explicitly for fallback behavior.
     _scheduler_svc = None
     try:
         from app.services.scheduler_service import get_scheduler_service
 
         _scheduler_svc = get_scheduler_service()
-        poll = 60.0 if settings.is_production else 15.0
-        await _scheduler_svc.start_local_cron(poll_interval=poll)
+        should_run_local_cron = (
+            not settings.is_production
+            or settings.ENABLE_LOCAL_CRON_IN_PRODUCTION
+        )
+        if should_run_local_cron:
+            poll = 60.0 if settings.is_production else 15.0
+            await _scheduler_svc.start_local_cron(poll_interval=poll)
+        else:
+            logger.info("local_cron_disabled_in_production")
     except Exception:
         logger.warning("cron_runner_start_failed", exc_info=True)
 
@@ -116,10 +123,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown — stop local cron + reaper + close MCP/plugin connections
     if _scheduler_svc:
-        try:
+        with suppress(Exception):
             await _scheduler_svc.stop_local_cron()
-        except Exception:
-            pass
     mgr.stop_reaper()
     try:
         from app.services.plugin_registry import get_plugin_registry

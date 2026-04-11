@@ -66,6 +66,7 @@ class Settings(BaseSettings):
 
     # --- Scheduler ---
     SCHEDULER_SA_EMAIL: str = ""  # Service account email for Cloud Scheduler OIDC
+    ENABLE_LOCAL_CRON_IN_PRODUCTION: bool = False
 
     @property
     def is_production(self) -> bool:

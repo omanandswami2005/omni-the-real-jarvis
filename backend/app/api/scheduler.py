@@ -7,6 +7,8 @@ open invocation.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from google.cloud import firestore
 
@@ -63,6 +65,15 @@ async def _verify_oidc_token(token: str) -> bool:
         return False
 
 
+def _parse_scheduler_time(raw_value: str) -> datetime | None:
+    """Parse Cloud Scheduler schedule-time header into UTC datetime."""
+    try:
+        return datetime.fromisoformat(raw_value.replace("Z", "+00:00")).astimezone(UTC)
+    except Exception:
+        logger.warning("invalid_scheduler_time_header", raw=raw_value)
+        return None
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 
@@ -70,6 +81,7 @@ async def _verify_oidc_token(token: str) -> bool:
 async def run_scheduled_task(
     task_id: str,
     request: Request,
+    x_cloudscheduler_scheduletime: str | None = Header(None),
     _: None = Depends(_verify_internal_caller),
 ):
     """Execute a single scheduled task by ID.
@@ -77,7 +89,7 @@ async def run_scheduled_task(
     Called by Cloud Scheduler on the task's cron cadence.
     Supports idempotency via ``execution_id`` in the request body.
     """
-    from app.services.scheduler_service import get_scheduler_service
+    from app.services.scheduler_service import build_cron_execution_id, get_scheduler_service
 
     # Extract optional execution_id for idempotency
     execution_id = ""
@@ -86,6 +98,11 @@ async def run_scheduled_task(
         execution_id = body.get("execution_id", "")
     except Exception:
         pass
+
+    if not execution_id and x_cloudscheduler_scheduletime:
+        schedule_time = _parse_scheduler_time(x_cloudscheduler_scheduletime)
+        if schedule_time:
+            execution_id = build_cron_execution_id(task_id, schedule_time)
 
     svc = get_scheduler_service()
     task = await svc.get_task_by_id(task_id=task_id)

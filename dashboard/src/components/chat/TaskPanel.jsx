@@ -644,6 +644,38 @@ export default function TaskPanel() {
         }
     }, [rawTasks, reviewTask?.id]);
 
+    const hydrateTaskDetail = useCallback(async (taskId) => {
+        const cached = useTaskStore.getState().tasks[taskId];
+        if (Array.isArray(cached?.steps)) return cached;
+        try {
+            const detail = await api.get(`/tasks/${taskId}`);
+            if (detail?.id) {
+                useTaskStore.getState().setTask(detail);
+                return detail;
+            }
+        } catch (err) {
+            console.error('Failed to load task detail:', err);
+        }
+        return useTaskStore.getState().tasks[taskId];
+    }, []);
+
+    useEffect(() => {
+        if (!activeTaskId) return;
+        void hydrateTaskDetail(activeTaskId);
+    }, [activeTaskId, hydrateTaskDetail]);
+
+    const openTask = useCallback((taskId) => {
+        setActiveTask(taskId);
+        void hydrateTaskDetail(taskId);
+    }, [setActiveTask, hydrateTaskDetail]);
+
+    const openReview = useCallback(async (taskId) => {
+        const detailed = await hydrateTaskDetail(taskId);
+        if (detailed) {
+            setReviewTask(detailed);
+        }
+    }, [hydrateTaskDetail]);
+
     const handleDelete = useCallback(async (taskId) => {
         try {
             await api.delete(`/tasks/${taskId}`);
@@ -731,7 +763,7 @@ export default function TaskPanel() {
                         </button>
                         <TaskDetail
                             task={activeTask}
-                            onOpenReview={() => setReviewTask(activeTask)}
+                            onOpenReview={() => void openReview(activeTask.id)}
                         />
                     </div>
                 ) : (
@@ -741,8 +773,8 @@ export default function TaskPanel() {
                                 key={task.id}
                                 task={task}
                                 isActive={task.id === activeTaskId}
-                                onClick={() => setActiveTask(task.id)}
-                                onReview={() => setReviewTask(task)}
+                                onClick={() => openTask(task.id)}
+                                onReview={() => void openReview(task.id)}
                                 onDelete={() => handleDelete(task.id)}
                             />
                         ))}
