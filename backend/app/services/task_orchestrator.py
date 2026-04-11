@@ -693,6 +693,8 @@ class TaskOrchestrator:
                 "progress": round(task.progress * 100, 1),
                 "result_summary": task.result_summary,
                 "context": task.context,
+                "created_at": task.created_at.isoformat() if task.created_at else "",
+                "updated_at": task.updated_at.isoformat() if task.updated_at else "",
             },
             "timestamp": time.time(),
         })

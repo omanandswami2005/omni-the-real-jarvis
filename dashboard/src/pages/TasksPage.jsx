@@ -55,6 +55,27 @@ const SCHED_STATUS_CONFIG = {
     failed: { icon: AlertCircle, color: 'text-red-400', bg: 'bg-red-500/10', label: 'Failed' },
 };
 
+function taskSortKey(task) {
+    return task.updated_at || task.created_at || '';
+}
+
+function getStepCount(task) {
+    if (Array.isArray(task.steps)) return task.steps.length;
+    if (typeof task.step_count === 'number') return task.step_count;
+    return 0;
+}
+
+function getCompletedStepCount(task) {
+    if (Array.isArray(task.steps) && task.steps.length > 0) {
+        return task.steps.filter((s) => s.status === 'completed').length;
+    }
+    const total = getStepCount(task);
+    if (!total) return 0;
+    const progress = typeof task.progress === 'number' ? task.progress : 0;
+    const bounded = Math.max(0, Math.min(progress, 100));
+    return Math.round((bounded / 100) * total);
+}
+
 // ── Step Timeline (reused from TaskPanel pattern) ────────────────────
 
 function StepTimeline({ step, isLast }) {
@@ -243,7 +264,7 @@ function PlannedTaskDetail({ task, onBack }) {
 function PlannedTasksTab() {
     const rawTasks = useTaskStore((s) => s.tasks);
     const tasks = useMemo(
-        () => Object.values(rawTasks).sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')),
+        () => Object.values(rawTasks).sort((a, b) => taskSortKey(b).localeCompare(taskSortKey(a))),
         [rawTasks],
     );
     const [loading, setLoading] = useState(false);
@@ -329,8 +350,8 @@ function PlannedTasksTab() {
                     {filtered.map((task) => {
                         const config = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
                         const Icon = config.icon;
-                        const stepCount = (task.steps || []).length;
-                        const completedSteps = (task.steps || []).filter(s => s.status === 'completed').length;
+                        const stepCount = getStepCount(task);
+                        const completedSteps = getCompletedStepCount(task);
 
                         return (
                             <div key={task.id} onClick={() => handleSelectTask(task.id)}

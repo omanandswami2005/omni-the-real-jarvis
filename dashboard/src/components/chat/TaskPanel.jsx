@@ -57,8 +57,29 @@ const CATEGORIES = {
 
 const PAGE_SIZE = 10;
 
+function taskSortKey(task) {
+    return task.updated_at || task.created_at || '';
+}
+
+function getStepCount(task) {
+    if (Array.isArray(task.steps)) return task.steps.length;
+    if (typeof task.step_count === 'number') return task.step_count;
+    return 0;
+}
+
+function getCompletedStepCount(task) {
+    if (Array.isArray(task.steps) && task.steps.length > 0) {
+        return task.steps.filter((s) => s.status === 'completed').length;
+    }
+    const total = getStepCount(task);
+    if (!total) return 0;
+    const progress = typeof task.progress === 'number' ? task.progress : 0;
+    const bounded = Math.max(0, Math.min(progress, 100));
+    return Math.round((bounded / 100) * total);
+}
+
 function categorizeTask(task) {
-    if (task.status === 'running' || task.status === 'paused') return 'running';
+    if (['running', 'paused', 'planning', 'awaiting_confirmation'].includes(task.status)) return 'running';
     if (task.status === 'completed') return 'completed';
     if (task.status === 'failed') return 'failed';
     if (task.context?.scheduled || task.context?.cron_expression) return 'scheduled';
@@ -284,8 +305,8 @@ function TaskCard({ task, isActive, onClick, onReview, onDelete }) {
     const config = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
     const Icon = config.icon;
     const progress = task.progress ?? 0;
-    const stepCount = (task.steps || []).length;
-    const completedSteps = (task.steps || []).filter((s) => s.status === 'completed').length;
+    const stepCount = getStepCount(task);
+    const completedSteps = getCompletedStepCount(task);
     const [showMenu, setShowMenu] = useState(false);
     const menuRef = useRef(null);
 
@@ -592,9 +613,13 @@ function CategoryTabs({ active, counts, onChange }) {
 
 export default function TaskPanel() {
     const rawTasks = useTaskStore((s) => s.tasks);
-    const tasks = useMemo(() => Object.values(rawTasks).sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')), [rawTasks]);
+    const tasks = useMemo(
+        () => Object.values(rawTasks).sort((a, b) => taskSortKey(b).localeCompare(taskSortKey(a))),
+        [rawTasks],
+    );
     const activeTaskId = useTaskStore((s) => s.activeTaskId);
     const setActiveTask = useTaskStore((s) => s.setActiveTask);
+    const pendingInputs = useTaskStore((s) => s.pendingInputs);
 
     const [reviewTask, setReviewTask] = useState(null);
     const [category, setCategory] = useState('all');
@@ -603,7 +628,7 @@ export default function TaskPanel() {
 
     const activeTask = tasks.find((t) => t.id === activeTaskId);
     const runningCount = tasks.filter((t) => t.status === 'running').length;
-    const pendingInputCount = Object.keys(useTaskStore.getState().pendingInputs).length;
+    const pendingInputCount = Object.keys(pendingInputs).length;
 
     // Category counts
     const categoryCounts = useMemo(() => {

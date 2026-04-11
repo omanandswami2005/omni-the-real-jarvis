@@ -35,6 +35,7 @@ async def list_tasks(user: AuthenticatedUser = Depends(get_current_user)):  # no
                 "status": t.status.value,
                 "step_count": len(t.steps),
                 "progress": round(t.progress * 100, 1),
+                "context": t.context,
                 "created_at": t.created_at.isoformat() if t.created_at else "",
                 "updated_at": t.updated_at.isoformat() if t.updated_at else "",
             }
