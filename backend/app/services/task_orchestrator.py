@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from google.cloud import firestore
@@ -398,14 +398,14 @@ class TaskOrchestrator:
         try:
             from app.services.plugin_registry import get_plugin_registry
             registry = get_plugin_registry()
-            t2_tools = registry.get_tools_for_capabilities(task.user_id, caps)
+            t2_tools = await registry.get_tools_for_capabilities(task.user_id, caps)
             if t2_tools:
                 existing = {getattr(t, "name", str(t)) for t in tools}
                 for t in t2_tools:
                     if getattr(t, "name", str(t)) not in existing:
                         tools.append(t)
         except Exception:
-            logger.debug("t2_tools_unavailable", step_id=step.id)
+            logger.debug("t2_tools_unavailable", step_id=step.id, exc_info=True)
 
         # Build context from previous step outputs
         context_parts = []
@@ -421,6 +421,24 @@ class TaskOrchestrator:
             full_instruction = (
                 f"Context from previous steps:\n{context_str}\n\n"
                 f"Your task:\n{step.instruction}"
+            )
+
+        tool_names = {getattr(t, "name", str(t)) for t in tools}
+        calendar_tool_names = {
+            "create_calendar_event",
+            "list_calendar_events",
+            "delete_calendar_event",
+        }
+        if tool_names.intersection(calendar_tool_names):
+            now_utc = datetime.now(UTC)
+            now_ist = now_utc + timedelta(hours=5, minutes=30)
+            full_instruction = (
+                f"{full_instruction}\n\n"
+                "Calendar scheduling defaults:\n"
+                "- Resolve relative date/time phrases using the current time reference.\n"
+                f"- Current UTC time: {now_utc.isoformat(timespec='seconds')}\n"
+                f"- Current IST time (Asia/Kolkata): {now_ist.isoformat(timespec='seconds')}\n"
+                "- If timezone is omitted, use IST (Asia/Kolkata)."
             )
 
         agent = Agent(

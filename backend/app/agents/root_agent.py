@@ -23,6 +23,8 @@ Usage
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from google.adk.agents import Agent
 from google.adk.tools.agent_tool import AgentTool
 
@@ -58,6 +60,10 @@ def _build_root_instruction(
     non_persona_ids = {pid for pid, _ in persona_names}
     other_tools = sorted(t for t in root_tool_names if t not in non_persona_ids)
     other_list = ", ".join(other_tools) if other_tools else "(none)"
+    now_utc = datetime.now(UTC)
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+    now_utc_text = now_utc.isoformat(timespec="seconds")
+    now_ist_text = now_ist.isoformat(timespec="seconds")
 
     return (
         "You are Omni, a friendly voice-first AI assistant hub.\n"
@@ -105,6 +111,11 @@ def _build_root_instruction(
         "then use send_to_desktop / send_to_chrome / notify_client DIRECTLY.\n"
         "11. Desktop-local tasks (files, apps, screen) → call the T3 tool DIRECTLY.\n"
         "12. If unsure → call **get_capabilities()** first, then route.\n\n"
+        "## Calendar Defaults\n"
+        "When using calendar tools, resolve relative dates/times against the current time.\n"
+        f"Current UTC reference: {now_utc_text}\n"
+        f"Current IST reference (Asia/Kolkata): {now_ist_text}\n"
+        "If the user does not specify a timezone, default to IST (Asia/Kolkata).\n\n"
         "## Two Desktop Systems — DO NOT CONFUSE\n"
         "1. **E2B Cloud Sandbox** (coder/analyst tools) — virtual Linux, always available.\n"
         "2. **User's Real Devices** (your direct tools) — call list_connected_clients first.\n"

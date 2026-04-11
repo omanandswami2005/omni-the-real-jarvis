@@ -207,7 +207,9 @@ def _render_markdown(data: dict) -> str:
         "**IMPORTANT:** You (root) do NOT call specialist-only tools like "
         "`execute_code`, `google_search`, `generate_image` directly. "
         "Route to the right specialist below. However, communication tools "
-        "(calendar, email, Notion) are YOUR tools — call them directly.\n"
+        "(calendar, email, Notion) are YOUR tools — call them directly. "
+        "For calendar actions, resolve relative dates/times from the current moment "
+        "and default timezone to IST (Asia/Kolkata) unless the user specifies otherwise.\n"
     )
     for pid, (display_name, desc) in _PERSONA_DISPLAY.items():
         caps = _PERSONA_CAPABILITIES.get(pid, [])

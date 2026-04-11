@@ -620,6 +620,47 @@ class PluginRegistry:
                 logger.warning("plugin_get_tools_failed", plugin_id=plugin_id, exc_info=True)
         return tools
 
+    async def get_tools_for_capabilities(self, user_id: str, capabilities: list[str]) -> list:
+        """Return enabled plugin tools whose tags match the given capabilities.
+
+        Matching rule mirrors ToolRegistry behavior:
+          - ``"*"`` in plugin tags matches any persona
+          - ``"*"`` in persona capabilities matches all enabled plugins
+          - otherwise requires non-empty tag intersection
+        """
+        caps = set(capabilities)
+        tools: list = []
+        seen_names: set[str] = set()
+
+        for plugin_id in self.get_enabled_ids(user_id):
+            manifest = self._catalog.get(plugin_id)
+            if manifest is None:
+                continue
+
+            tags = set(manifest.tags)
+            if not ("*" in tags or "*" in caps or tags & caps):
+                continue
+
+            try:
+                plugin_tools = await self._get_plugin_tools(user_id, plugin_id, manifest)
+            except Exception:
+                logger.warning(
+                    "plugin_get_tools_for_caps_failed",
+                    user_id=user_id,
+                    plugin_id=plugin_id,
+                    capabilities=sorted(caps),
+                    exc_info=True,
+                )
+                continue
+
+            for t in plugin_tools:
+                name = getattr(t, "name", str(t))
+                if name not in seen_names:
+                    seen_names.add(name)
+                    tools.append(t)
+
+        return tools
+
     async def _get_plugin_tools(
         self,
         user_id: str,
