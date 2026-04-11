@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+*.egg-info/
+.git/
+.ruff_cache/
+.pytest_cache/
+tests/
+scripts/
+test_output/
+cloud-run-env.yaml
+dev.py
+run_tests.py
+ruff.toml
