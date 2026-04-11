@@ -1135,6 +1135,64 @@ def _try_parse_genui(text: str) -> dict | None:
     return None
 
 
+def _extract_primary_text(payload: dict) -> str:
+    """Best-effort extraction of the main human-readable field from a dict payload."""
+    for key in ("result", "message", "text", "output", "response", "summary"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    nested = payload.get("result")
+    if isinstance(nested, dict):
+        nested_text = _extract_primary_text(nested)
+        if nested_text:
+            return nested_text
+
+    return ""
+
+
+def _normalize_response_text(value) -> str:
+    """Convert heterogeneous tool/function payloads into readable text.
+
+    This prevents leaking raw Python dict repr strings like
+    ``{'result': '...'} `` into chat bubbles.
+    """
+    if value is None:
+        return ""
+
+    if isinstance(value, dict):
+        extracted = _extract_primary_text(value)
+        if extracted:
+            return extracted
+        try:
+            return json.dumps(value)
+        except TypeError:
+            return str(value)
+
+    if isinstance(value, list):
+        parts = [p.strip() for p in (_normalize_response_text(v) for v in value) if p and p.strip()]
+        return "\n".join(parts)
+
+    if isinstance(value, str):
+        text = value.strip()
+        if text.startswith("{") and text.endswith("}"):
+            parsed = None
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                with contextlib.suppress(Exception):
+                    import ast
+
+                    parsed = ast.literal_eval(text)
+            if isinstance(parsed, dict):
+                extracted = _extract_primary_text(parsed)
+                if extracted:
+                    return extracted
+        return value
+
+    return str(value)
+
+
 def _next_call_id(fc_id: str | None = None) -> str:
     """Generate a unique call_id for tool_call ↔ tool_response matching."""
     global _call_id_counter
@@ -1385,7 +1443,7 @@ async def _process_event(
             # card.  If the model also speaks, the audio transcription
             # becomes the primary chat message and the companion is
             # supplementary — avoiding duplicate "text + transcription".
-            _persona_text = str(fr.response) if fr.response else ""
+            _persona_text = _normalize_response_text(fr.response)
             if _persona_text:
                 _pmsg = AgentResponse(content_type=ContentType.COMPANION, data=_persona_text)
                 _pjson = _pmsg.model_dump_json()
@@ -1455,7 +1513,7 @@ async def _process_event(
         # Always send the tool response (text summary for image tools)
         msg = ToolResponseMessage(
             tool_name=fr.name,
-            result=str(fr.response) if fr.response else "",
+            result=_normalize_response_text(fr.response),
             success=True,
             action_kind=kind,
             source_label=label,
