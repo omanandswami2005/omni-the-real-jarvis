@@ -4,9 +4,10 @@
     "description": "Interact with GitHub repos, issues, PRs, actions, code security, and more.",
     "kind": "mcp_stdio",
     "category": "dev",
-    "command": "github-mcp-server.exe",
+    "command": "npx",
     "args": [
-        "stdio"
+        "-y",
+        "@modelcontextprotocol/server-github"
     ],
     "env_keys": [
         "GITHUB_PERSONAL_ACCESS_TOKEN"
