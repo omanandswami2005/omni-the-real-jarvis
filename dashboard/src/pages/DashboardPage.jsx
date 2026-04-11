@@ -16,6 +16,7 @@ import DesktopViewer from '@/components/sandbox/DesktopViewer';
 import DesktopPiP from '@/components/sandbox/DesktopPiP';
 import { useVoice } from '@/hooks/useVoiceProvider';
 import { useChatStore } from '@/stores/chatStore';
+import { useChatWsStore } from '@/stores/chatWsStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { usePersonaStore } from '@/stores/personaStore';
 import { useClientStore } from '@/stores/clientStore';
@@ -123,17 +124,24 @@ export default function DashboardPage() {
     // Find the last genui message for the side panel
     const lastGenUI = [...messages].reverse().find((m) => m.genui_type);
 
+    // Typed text goes through /ws/chat (text model) for formatted code, GenUI, markdown.
+    // Voice/audio continues on /ws/live.  Falls back to live WS if chat WS unavailable.
+    const chatWsSendText = useChatWsStore((s) => s.sendText);
+    const chatWsConnected = useChatWsStore((s) => s.isConnected);
+    const textSendFn = chatWsSendText || voice.sendText;
+    const isConnected = chatWsConnected || voice.isConnected;
+
     return (
         <div className="flex h-full gap-4">
             {/* Main chat panel */}
             <div className="flex-1">
                 <ChatPanel
-                    onSend={voice.sendText}
+                    onSend={textSendFn}
                     onStop={voice.stopGeneration}
                     isRecording={voice.isRecording}
                     captureVolume={voice.captureVolume}
                     playbackVolume={voice.playbackVolume}
-                    isChatConnected={voice.isConnected}
+                    isChatConnected={isConnected}
                 />
             </div>
 

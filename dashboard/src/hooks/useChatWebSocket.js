@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { auth } from '@/lib/firebase';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
+import { useChatWsStore } from '@/stores/chatWsStore';
 import { getClientType } from '@/lib/constants';
 import { useClientStore } from '@/stores/clientStore';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -70,6 +71,9 @@ export function useChatWebSocket() {
         ws.onmessage = (event) => {
             const msg = parseServerMessage(event);
             const store = useChatStore.getState();
+
+            // Any message from the server means it's alive — clear response timeout
+            if (responseTimeoutRef.current) clearResponseTimeout();
 
             // cross_client:true means this event originated from another device
             // (e.g. a mobile /ws/live session). Tag the message so the UI can
@@ -243,6 +247,13 @@ export function useChatWebSocket() {
     }, []);
 
     const titleRefreshed = useRef(false);
+    const responseTimeoutRef = useRef(null);
+    const RESPONSE_TIMEOUT_MS = 20_000;
+
+    const clearResponseTimeout = useCallback(() => {
+        clearTimeout(responseTimeoutRef.current);
+        responseTimeoutRef.current = null;
+    }, []);
 
     // Reconnect when session changes (user navigated to a different session)
     const reconnect = useCallback(() => {
@@ -276,22 +287,55 @@ export function useChatWebSocket() {
         });
 
         if (wsRef.current?.readyState === WebSocket.OPEN) {
+            // Show processing state immediately so user sees feedback
+            useChatStore.getState().setAgentState('processing');
             wsRef.current.send(JSON.stringify({ type: 'text', content: text }));
             // Auto-refresh sessions list after first message so auto-generated title shows
             if (!titleRefreshed.current) {
                 titleRefreshed.current = true;
                 setTimeout(() => useSessionStore.getState().loadSessions(), 4000);
             }
+            // Response timeout — if backend never responds, notify user
+            clearTimeout(responseTimeoutRef.current);
+            responseTimeoutRef.current = setTimeout(() => {
+                const current = useChatStore.getState().agentState;
+                if (current === 'processing') {
+                    useChatStore.getState().setAgentState('idle');
+                    useChatStore.getState().cancelAllActions();
+                    toast.error('No response from the server. Please check your connection and try again.', { duration: 6000 });
+                    useChatStore.getState().addMessage({
+                        id: `timeout-${Date.now()}`,
+                        role: 'system',
+                        type: 'error',
+                        content: 'No response received — the server may be unavailable. Please try again.',
+                        timestamp: new Date().toISOString(),
+                    });
+                }
+            }, RESPONSE_TIMEOUT_MS);
         } else {
-            // WS not connected — inform the user instead of silently dropping
+            // WS not connected — inform the user
             useChatStore.getState().addMessage({
                 id: `err-${Date.now()}`,
                 role: 'system',
-                content: 'Message could not be sent — reconnecting…',
+                type: 'error',
+                content: 'Message could not be sent — connection lost. Reconnecting…',
                 timestamp: new Date().toISOString(),
             });
+            toast.error('Not connected. Attempting to reconnect…', { duration: 4000 });
         }
-    }, []);
+    }, [clearResponseTimeout]);
+
+    // Sync sendText and connection state to the bridge store so
+    // DashboardPage can route typed text through /ws/chat (text model)
+    // instead of /ws/live (audio model).
+    useEffect(() => {
+        useChatWsStore.getState().setSendText(sendText);
+        return () => useChatWsStore.getState().setSendText(null);
+    }, [sendText]);
+
+    useEffect(() => {
+        useChatWsStore.getState().setIsConnected(isConnected);
+    }, [isConnected]);
 
     return { sendText, isConnected, serverSessionId, reconnect };
 }
